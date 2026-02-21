@@ -73,7 +73,11 @@ export class TreasuryService {
 
     const signedTx = await signTransactionMessageWithSigners(message);
     const signature = getSignatureFromTransaction(signedTx);
-    await this.sendAndConfirm(signedTx, { commitment: 'confirmed' });
+    // pipe() doesn't narrow the lifetime union — we know it's blockhash from line 62
+    await this.sendAndConfirm(
+      signedTx as Parameters<typeof this.sendAndConfirm>[0],
+      { commitment: 'confirmed' },
+    );
     return signature;
   }
 }

@@ -31,9 +31,9 @@ vi.mock('@solana/kit', () => ({
     return result;
   }),
   createTransactionMessage: vi.fn(() => ({})),
-  setTransactionMessageFeePayerSigner: vi.fn(() => (m: any) => ({})),
-  setTransactionMessageLifetimeUsingBlockhash: vi.fn(() => (m: any) => ({})),
-  appendTransactionMessageInstruction: vi.fn(() => (m: any) => ({})),
+  setTransactionMessageFeePayerSigner: vi.fn(() => (_: any) => ({})),
+  setTransactionMessageLifetimeUsingBlockhash: vi.fn(() => (_: any) => ({})),
+  appendTransactionMessageInstruction: vi.fn(() => (_: any) => ({})),
   signTransactionMessageWithSigners: vi.fn(async () => ({})),
   getSignatureFromTransaction: vi.fn(() => 'FakeSignature1111111111111111111111111111111111111'),
 }));
