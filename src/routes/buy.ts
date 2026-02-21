@@ -3,6 +3,7 @@ import type { TransactionDB } from '../db/sqlite.js';
 import type { PricingService } from '../services/pricing.js';
 import type { TreasuryService } from '../services/treasury.js';
 import type { X402Service } from '../services/x402.js';
+import { validateBuySellBody } from '../validation.js';
 
 interface BuyDeps {
   db: TransactionDB;
@@ -16,11 +17,12 @@ export function buyRoutes({ db, pricing, treasury, x402 }: BuyDeps) {
 
   router.post('/buy', async (c) => {
     const body = await c.req.json().catch(() => null);
-    if (!body?.wallet || !body?.amount_sol || body.amount_sol <= 0) {
-      return c.json({ error: 'Invalid request: wallet and positive amount_sol required' }, 400);
+    const validated = validateBuySellBody(body);
+    if (typeof validated === 'string') {
+      return c.json({ error: validated }, 400);
     }
 
-    const { wallet, amount_sol } = body;
+    const { wallet, amount_sol } = validated;
     const quote = pricing.buyQuote(amount_sol);
 
     const paymentHeader = c.req.header('X-PAYMENT');

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { randomUUID } from 'crypto';
 import type { TransactionDB } from '../db/sqlite.js';
 import type { PricingService } from '../services/pricing.js';
+import { validateBuySellBody } from '../validation.js';
 
 interface SellDeps {
   db: TransactionDB;
@@ -14,11 +15,12 @@ export function sellRoutes({ db, pricing, treasuryAddress }: SellDeps) {
 
   router.post('/sell', async (c) => {
     const body = await c.req.json().catch(() => null);
-    if (!body?.wallet || !body?.amount_sol || body.amount_sol <= 0) {
-      return c.json({ error: 'Invalid request: wallet and positive amount_sol required' }, 400);
+    const validated = validateBuySellBody(body);
+    if (typeof validated === 'string') {
+      return c.json({ error: validated }, 400);
     }
 
-    const { wallet, amount_sol } = body;
+    const { wallet, amount_sol } = validated;
     const quote = pricing.sellQuote(amount_sol);
     const memo = `devsol-${randomUUID().slice(0, 8)}`;
 

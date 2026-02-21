@@ -122,7 +122,7 @@ describe('DevSOL App', () => {
     const buyRes = await app.request('/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wallet: 'TestWallet111', amount_sol: 1 }),
+      body: JSON.stringify({ wallet: 'TestWa11et111XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 1 }),
     });
     expect(buyRes.status).toBe(402);
 
@@ -130,7 +130,7 @@ describe('DevSOL App', () => {
     const sellRes = await app.request('/sell', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wallet: 'TestWallet111', amount_sol: 1 }),
+      body: JSON.stringify({ wallet: 'TestWa11et111XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 1 }),
     });
     expect(sellRes.status).toBe(200);
     const sellBody = await sellRes.json();

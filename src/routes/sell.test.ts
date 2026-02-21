@@ -22,7 +22,7 @@ describe('POST /sell', () => {
     const res = await app.request('/sell', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wallet: 'SellerWallet', amount_sol: 10 }),
+      body: JSON.stringify({ wallet: 'Se11erWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 10 }),
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -38,7 +38,7 @@ describe('POST /sell', () => {
     const res = await app.request('/sell', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wallet: 'SellerWallet' }),
+      body: JSON.stringify({ wallet: 'Se11erWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX' }),
     });
     expect(res.status).toBe(400);
   });
@@ -47,7 +47,7 @@ describe('POST /sell', () => {
     const res = await app.request('/sell', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wallet: 'SellerWallet', amount_sol: 5 }),
+      body: JSON.stringify({ wallet: 'Se11erWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 5 }),
     });
     const body = await res.json();
     const tx = db.getById(body.transaction_id);

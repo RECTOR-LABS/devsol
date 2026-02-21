@@ -37,7 +37,7 @@ describe('POST /buy', () => {
     const res = await app.request('/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wallet: 'BuyerWallet', amount_sol: 10 }),
+      body: JSON.stringify({ wallet: 'BuyerWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 10 }),
     });
     expect(res.status).toBe(402);
     const body = await res.json();
@@ -49,7 +49,7 @@ describe('POST /buy', () => {
     const res = await app.request('/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wallet: 'BuyerWallet' }),
+      body: JSON.stringify({ wallet: 'BuyerWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX' }),
     });
     expect(res.status).toBe(400);
   });
@@ -61,7 +61,7 @@ describe('POST /buy', () => {
         'Content-Type': 'application/json',
         'X-PAYMENT': 'valid-payment-proof',
       },
-      body: JSON.stringify({ wallet: 'BuyerWallet', amount_sol: 10 }),
+      body: JSON.stringify({ wallet: 'BuyerWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 10 }),
     });
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -69,7 +69,7 @@ describe('POST /buy', () => {
     expect(body.sol_amount).toBe(10);
     expect(body.status).toBe('completed');
     expect(body.devnet_tx).toBe('devnet_sig_123');
-    expect(mockTreasury.sendSol).toHaveBeenCalledWith('BuyerWallet', 10);
+    expect(mockTreasury.sendSol).toHaveBeenCalledWith('BuyerWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX', 10);
   });
 
   it('returns 402 for invalid payment', async () => {
@@ -80,7 +80,7 @@ describe('POST /buy', () => {
         'Content-Type': 'application/json',
         'X-PAYMENT': 'invalid-proof',
       },
-      body: JSON.stringify({ wallet: 'BuyerWallet', amount_sol: 10 }),
+      body: JSON.stringify({ wallet: 'BuyerWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 10 }),
     });
     expect(res.status).toBe(402);
   });
