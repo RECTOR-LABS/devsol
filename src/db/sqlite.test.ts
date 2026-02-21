@@ -70,6 +70,12 @@ describe('TransactionDB', () => {
     expect(pending.every((t) => t.type === 'sell' && t.status === 'pending')).toBe(true);
   });
 
+  it('throws when updating non-existent transaction', () => {
+    expect(() => db.update('nonexistent', { status: 'completed' })).toThrow(
+      'Transaction not found: nonexistent',
+    );
+  });
+
   it('prevents duplicate payment IDs', () => {
     db.create({
       type: 'buy',

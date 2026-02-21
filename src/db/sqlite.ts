@@ -89,21 +89,24 @@ export class TransactionDB {
     const sets: string[] = ["updated_at = datetime('now')"];
     const values: unknown[] = [];
 
-    if (input.status) {
+    if (input.status !== undefined) {
       sets.push('status = ?');
       values.push(input.status);
     }
-    if (input.mainnet_tx) {
+    if (input.mainnet_tx !== undefined) {
       sets.push('mainnet_tx = ?');
       values.push(input.mainnet_tx);
     }
-    if (input.devnet_tx) {
+    if (input.devnet_tx !== undefined) {
       sets.push('devnet_tx = ?');
       values.push(input.devnet_tx);
     }
 
     values.push(id);
-    this.db.prepare(`UPDATE transactions SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    const result = this.db.prepare(`UPDATE transactions SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    if (result.changes === 0) {
+      throw new Error(`Transaction not found: ${id}`);
+    }
   }
 
   findPendingSells(): Transaction[] {
