@@ -16,7 +16,7 @@ const mockX402 = {
     accepts: [{ scheme: 'exact', price: '$10.5', network: 'solana:test', payTo: 'pay' }],
     description: 'Buy 10 SOL',
   })),
-  verifyPayment: vi.fn(async () => ({ valid: true })),
+  verifyPayment: vi.fn(async () => ({ valid: true } as { valid: boolean; reason?: string })),
 };
 
 describe('POST /buy', () => {
