@@ -1,12 +1,12 @@
 function env(key: string, fallback?: string): string {
   const value = process.env[key] ?? fallback;
-  if (!value) throw new Error(`Missing env var: ${key}`);
+  if (value === undefined) throw new Error(`Missing env var: ${key}`);
   return value;
 }
 
 export const config = {
   port: Number(env('DEVSOL_PORT', '3100')),
-  treasuryKeypair: env('DEVSOL_TREASURY_KEYPAIR'),
+  treasuryKeypair: env('DEVSOL_TREASURY_KEYPAIR', ''),
   facilitatorUrl: env('DEVSOL_X402_FACILITATOR_URL', 'https://x402.org/facilitator'),
   devnetRpc: env('DEVSOL_DEVNET_RPC', 'https://api.devnet.solana.com'),
   devnetWss: env('DEVSOL_DEVNET_WSS', 'wss://api.devnet.solana.com'),
