@@ -1,7 +1,10 @@
 import { serve } from '@hono/node-server';
 import { readFileSync } from 'fs';
+import { createSolanaRpc } from '@solana/kit';
 import { createApp } from './app.js';
 import { TreasuryService } from './services/treasury.js';
+import { X402Service } from './services/x402.js';
+import { DepositDetector } from './services/deposit.js';
 import { config } from './config.js';
 
 async function main() {
@@ -14,7 +17,27 @@ async function main() {
     keypairBytes,
   });
 
-  const { app } = createApp({ treasury });
+  const x402 = new X402Service({
+    facilitator: {
+      verify: async () => ({ valid: true }), // TODO: wire real facilitator
+    },
+    payTo: treasury.address,
+    network: config.svmNetwork,
+  });
+
+  const { app, db } = createApp({ treasury, x402 });
+
+  const devnetRpc = createSolanaRpc(config.devnetRpc);
+  const depositDetector = new DepositDetector({
+    db,
+    rpc: devnetRpc,
+    treasuryAddress: treasury.address,
+    onDeposit: async (tx, sig) => {
+      console.log(`Deposit confirmed for sell ${tx.id}: ${sig}`);
+      // TODO: trigger USDC payout on mainnet
+    },
+  });
+  depositDetector.start();
 
   serve({ fetch: app.fetch, port: config.port }, (info) => {
     console.log(`DevSOL running on http://localhost:${info.port}`);
