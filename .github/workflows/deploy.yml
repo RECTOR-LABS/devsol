@@ -69,7 +69,7 @@ jobs:
 
             # Health check (max 1 min)
             for i in $(seq 1 30); do
-              if curl -sf http://localhost:3100/health >/dev/null 2>&1; then
+              if curl -sf http://localhost:7003/health >/dev/null 2>&1; then
                 echo "Deployment healthy"
                 exit 0
               fi

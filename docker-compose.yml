@@ -7,7 +7,7 @@ services:
     container_name: devsol-api
     restart: unless-stopped
     ports:
-      - "${DEVSOL_PORT:-3100}:3100"
+      - "${DEVSOL_PORT:-7003}:3100"
     volumes:
       - devsol-data:/app/data
     env_file:
