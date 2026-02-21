@@ -26,7 +26,7 @@ describe('DepositDetector', () => {
     expect(pending[0].memo).toBe('devsol-abc');
   });
 
-  it('calls onDeposit when deposit is confirmed', async () => {
+  it('calls onDeposit when deposit is confirmed via atomicComplete', async () => {
     const onDeposit = vi.fn();
     const tx = db.create({
       type: 'sell',
@@ -45,7 +45,7 @@ describe('DepositDetector', () => {
 
     await detector.processDeposit(tx.id, 'devnet_deposit_sig');
     expect(onDeposit).toHaveBeenCalledWith(
-      expect.objectContaining({ id: tx.id, type: 'sell' }),
+      expect.objectContaining({ id: tx.id, type: 'sell', status: 'completed' }),
       'devnet_deposit_sig',
     );
 
@@ -54,7 +54,7 @@ describe('DepositDetector', () => {
     expect(updated!.devnet_tx).toBe('devnet_deposit_sig');
   });
 
-  it('skips already-completed transactions', async () => {
+  it('skips already-completed transactions (atomicComplete returns null)', async () => {
     const onDeposit = vi.fn();
     const tx = db.create({
       type: 'sell',
@@ -108,5 +108,25 @@ describe('DepositDetector', () => {
       'deposit_sig_1',
     );
     expect(db.getById(tx.id)!.status).toBe('completed');
+  });
+
+  it('does not match on memo substring', async () => {
+    const onDeposit = vi.fn();
+    db.create({ type: 'sell', wallet: 'seller1', sol_amount: 5, usdc_amount: 4.75, memo: 'devsol-abc' });
+
+    const mockRpcSubstring = {
+      getSignaturesForAddress: vi.fn(() => ({
+        send: vi.fn(async () => [
+          { memo: 'xdevsol-abcx', signature: 'wrong_sig' },
+        ]),
+      })),
+    };
+
+    const detector = new DepositDetector({
+      db, rpc: mockRpcSubstring as any, treasuryAddress: 'T', onDeposit,
+    });
+
+    await detector.poll();
+    expect(onDeposit).not.toHaveBeenCalled();
   });
 });

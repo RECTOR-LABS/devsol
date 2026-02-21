@@ -37,7 +37,7 @@ export class DepositDetector {
 
       for (const sig of sigs) {
         if (sig.memo) {
-          const matching = pendingSells.find((tx) => sig.memo?.includes(tx.memo!));
+          const matching = pendingSells.find((tx) => tx.memo && sig.memo === tx.memo);
           if (matching) {
             await this.processDeposit(matching.id, sig.signature);
           }
@@ -49,10 +49,8 @@ export class DepositDetector {
   }
 
   async processDeposit(txId: string, devnetSig: string) {
-    const tx = this.cfg.db.getById(txId);
-    if (!tx || tx.status !== 'pending') return;
-
-    this.cfg.db.update(txId, { status: 'completed', devnet_tx: devnetSig });
+    const tx = this.cfg.db.atomicComplete(txId, devnetSig);
+    if (!tx) return;
     await this.cfg.onDeposit(tx, devnetSig);
   }
 }

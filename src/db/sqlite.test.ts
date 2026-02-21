@@ -76,6 +76,27 @@ describe('TransactionDB', () => {
     );
   });
 
+  it('atomicComplete sets completed and returns tx', () => {
+    const tx = db.create({ type: 'sell', wallet: 'w', sol_amount: 5, usdc_amount: 4.75, memo: 'devsol-test1' });
+    const result = db.atomicComplete(tx.id, 'sig_123');
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe('completed');
+    expect(result!.devnet_tx).toBe('sig_123');
+  });
+
+  it('atomicComplete returns null if already completed', () => {
+    const tx = db.create({ type: 'sell', wallet: 'w', sol_amount: 5, usdc_amount: 4.75, memo: 'devsol-test2' });
+    db.atomicComplete(tx.id, 'sig_first');
+    const second = db.atomicComplete(tx.id, 'sig_second');
+    expect(second).toBeNull();
+    // Verify first sig is preserved
+    expect(db.getById(tx.id)!.devnet_tx).toBe('sig_first');
+  });
+
+  it('atomicComplete returns null for non-existent id', () => {
+    expect(db.atomicComplete('nonexistent', 'sig')).toBeNull();
+  });
+
   it('prevents duplicate payment IDs', () => {
     db.create({
       type: 'buy',

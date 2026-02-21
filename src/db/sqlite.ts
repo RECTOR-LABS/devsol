@@ -109,6 +109,14 @@ export class TransactionDB {
     }
   }
 
+  atomicComplete(id: string, devnetSig: string): Transaction | null {
+    const result = this.db.prepare(
+      "UPDATE transactions SET status = 'completed', devnet_tx = ?, updated_at = datetime('now') WHERE id = ? AND status = 'pending'"
+    ).run(devnetSig, id);
+    if (result.changes === 0) return null;
+    return this.getById(id);
+  }
+
   findPendingSells(): Transaction[] {
     return this.db
       .prepare("SELECT * FROM transactions WHERE type = 'sell' AND status = 'pending'")
