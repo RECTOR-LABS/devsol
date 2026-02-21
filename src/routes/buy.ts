@@ -57,6 +57,7 @@ export function buyRoutes({ db, pricing, treasury, x402 }: BuyDeps) {
       db.update(tx.id, { status: 'completed', devnet_tx: devnetSig });
       return c.json({ ...db.getById(tx.id) });
     } catch (err) {
+      console.error('Buy delivery failed:', err);
       db.update(tx.id, { status: 'failed' });
       return c.json({ error: 'Delivery failed', transaction_id: tx.id }, 500);
     }

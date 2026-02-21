@@ -26,7 +26,7 @@ export function createApp(deps?: AppDeps) {
   const app = new Hono();
 
   // Middleware
-  app.use('*', cors());
+  app.use('*', cors({ origin: config.corsOrigin }));
   app.use('*', logger());
 
   // Rate limiting (simple in-memory)

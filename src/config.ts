@@ -14,6 +14,7 @@ export const config = {
   mainnetWss: env('DEVSOL_MAINNET_WSS', 'wss://api.mainnet-beta.solana.com'),
   buyPrice: Number(env('DEVSOL_BUY_PRICE', '1.05')),
   sellPrice: Number(env('DEVSOL_SELL_PRICE', '0.95')),
+  corsOrigin: env('DEVSOL_CORS_ORIGIN', 'https://devsol.rectorspace.com'),
   dbPath: env('DEVSOL_DB_PATH', './devsol.db'),
   svmNetwork: env('DEVSOL_SVM_NETWORK', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
 } as const;

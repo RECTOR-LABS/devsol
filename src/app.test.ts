@@ -37,13 +37,13 @@ describe('DevSOL App', () => {
     db.close();
   });
 
-  it('returns CORS headers', async () => {
+  it('returns CORS headers for allowed origin', async () => {
     const { db, pricing } = makeDeps();
     const { app } = createApp({ pricing, db });
     const res = await app.request('/health', {
-      headers: { Origin: 'https://example.com' },
+      headers: { Origin: 'https://devsol.rectorspace.com' },
     });
-    expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    expect(res.headers.get('access-control-allow-origin')).toBe('https://devsol.rectorspace.com');
     db.close();
   });
 

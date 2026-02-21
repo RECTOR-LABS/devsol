@@ -24,23 +24,27 @@ export function sellRoutes({ db, pricing, treasuryAddress }: SellDeps) {
     const quote = pricing.sellQuote(amount_sol);
     const memo = `devsol-${randomUUID().slice(0, 8)}`;
 
-    const tx = db.create({
-      type: 'sell',
-      wallet,
-      sol_amount: amount_sol,
-      usdc_amount: quote.usdc_amount,
-      memo,
-    });
+    try {
+      const tx = db.create({
+        type: 'sell',
+        wallet,
+        sol_amount: amount_sol,
+        usdc_amount: quote.usdc_amount,
+        memo,
+      });
 
-    return c.json({
-      transaction_id: tx.id,
-      status: 'pending',
-      deposit_address: treasuryAddress,
-      memo,
-      amount_sol,
-      usdc_payout: quote.usdc_amount,
-      instructions: `Send exactly ${amount_sol} SOL to ${treasuryAddress} on Solana devnet with memo: ${memo}`,
-    });
+      return c.json({
+        transaction_id: tx.id,
+        status: 'pending',
+        deposit_address: treasuryAddress,
+        memo,
+        amount_sol,
+        usdc_payout: quote.usdc_amount,
+        instructions: `Send exactly ${amount_sol} SOL to ${treasuryAddress} on Solana devnet with memo: ${memo}`,
+      });
+    } catch {
+      return c.json({ error: 'Failed to create sell order' }, 500);
+    }
   });
 
   return router;

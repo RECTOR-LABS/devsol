@@ -24,6 +24,7 @@ async function main() {
     payTo: treasury.address,
     network: config.svmNetwork,
   });
+  console.warn('WARNING: x402 facilitator verification is STUBBED — all payments accepted');
 
   const { app, db } = createApp({ treasury, x402 });
 
