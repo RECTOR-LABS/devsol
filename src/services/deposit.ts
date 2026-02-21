@@ -1,7 +1,8 @@
 import type { TransactionDB, Transaction } from '../db/sqlite.js';
 
+// Narrow interface for what we actually use — real @solana/kit Rpc is cast to this at call site
 interface SolanaRpc {
-  getSignaturesForAddress(address: string, opts: { limit: number }): {
+  getSignaturesForAddress(address: any, opts: any): {
     send(): Promise<Array<{ memo: string | null; signature: string }>>;
   };
 }

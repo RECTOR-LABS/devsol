@@ -31,7 +31,7 @@ async function main() {
   const devnetRpc = createSolanaRpc(config.devnetRpc);
   const depositDetector = new DepositDetector({
     db,
-    rpc: devnetRpc,
+    rpc: devnetRpc as any,
     treasuryAddress: treasury.address,
     onDeposit: async (tx, sig) => {
       console.log(`Deposit confirmed for sell ${tx.id}: ${sig}`);
