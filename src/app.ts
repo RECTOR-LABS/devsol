@@ -32,7 +32,8 @@ export function createApp(deps?: AppDeps) {
   // Rate limiting (simple in-memory)
   const rateLimits = new Map<string, { count: number; resetAt: number }>();
   app.use('*', async (c, next) => {
-    const ip = c.req.header('x-forwarded-for') ?? 'unknown';
+    const forwarded = c.req.header('x-forwarded-for');
+    const ip = forwarded ? forwarded.split(',').pop()!.trim() : 'unknown';
     const now = Date.now();
     const entry = rateLimits.get(ip);
     if (entry && entry.resetAt > now) {
@@ -42,6 +43,11 @@ export function createApp(deps?: AppDeps) {
       entry.count++;
     } else {
       rateLimits.set(ip, { count: 1, resetAt: now + 60_000 });
+      if (rateLimits.size > 10_000) {
+        for (const [key, val] of rateLimits) {
+          if (val.resetAt <= now) rateLimits.delete(key);
+        }
+      }
     }
     await next();
   });

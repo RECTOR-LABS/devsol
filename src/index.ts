@@ -39,6 +39,14 @@ async function main() {
   });
   depositDetector.start();
 
+  const shutdown = () => {
+    depositDetector.stop();
+    db.close();
+    process.exit(0);
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+
   serve({ fetch: app.fetch, port: config.port }, (info) => {
     console.log(`DevSOL running on http://localhost:${info.port}`);
     console.log(`Treasury: ${treasury.address}`);
