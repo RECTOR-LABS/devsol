@@ -12,6 +12,10 @@ import type { X402Service } from './services/x402.js';
 import { TransactionDB } from './db/sqlite.js';
 import { config } from './config.js';
 
+const RATE_LIMIT_MAX = 60;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_CLEANUP_THRESHOLD = 10_000;
+
 interface AppDeps {
   pricing?: PricingService;
   treasury?: TreasuryService;
@@ -37,13 +41,13 @@ export function createApp(deps?: AppDeps) {
     const now = Date.now();
     const entry = rateLimits.get(ip);
     if (entry && entry.resetAt > now) {
-      if (entry.count >= 60) {
+      if (entry.count >= RATE_LIMIT_MAX) {
         return c.json({ error: 'Rate limit exceeded' }, 429);
       }
       entry.count++;
     } else {
-      rateLimits.set(ip, { count: 1, resetAt: now + 60_000 });
-      if (rateLimits.size > 10_000) {
+      rateLimits.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+      if (rateLimits.size > RATE_LIMIT_CLEANUP_THRESHOLD) {
         for (const [key, val] of rateLimits) {
           if (val.resetAt <= now) rateLimits.delete(key);
         }

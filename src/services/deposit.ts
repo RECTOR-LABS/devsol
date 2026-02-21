@@ -1,11 +1,18 @@
 import type { TransactionDB, Transaction } from '../db/sqlite.js';
 
+interface SolanaRpc {
+  getSignaturesForAddress(address: string, opts: { limit: number }): {
+    send(): Promise<Array<{ memo: string | null; signature: string }>>;
+  };
+}
+
 interface DepositConfig {
   db: TransactionDB;
-  rpc: any; // Solana devnet RPC
+  rpc: SolanaRpc;
   treasuryAddress: string;
   onDeposit: (tx: Transaction, devnetSig: string) => void | Promise<void>;
   pollIntervalMs?: number;
+  signatureFetchLimit?: number;
 }
 
 export class DepositDetector {
@@ -15,7 +22,9 @@ export class DepositDetector {
 
   start() {
     const intervalMs = this.cfg.pollIntervalMs ?? 15_000;
-    this.interval = setInterval(() => this.poll(), intervalMs);
+    this.interval = setInterval(() => {
+      this.poll().catch((err) => console.error('Deposit poll fatal:', err));
+    }, intervalMs);
     console.log(`Deposit detector started (polling every ${intervalMs}ms)`);
   }
 
@@ -32,7 +41,7 @@ export class DepositDetector {
 
     try {
       const sigs = await this.cfg.rpc
-        .getSignaturesForAddress(this.cfg.treasuryAddress, { limit: 50 })
+        .getSignaturesForAddress(this.cfg.treasuryAddress, { limit: this.cfg.signatureFetchLimit ?? 50 })
         .send();
 
       for (const sig of sigs) {
