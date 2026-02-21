@@ -11,6 +11,8 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -55,11 +57,24 @@ jobs:
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1
         with:
-          host: 176.222.53.185
-          username: devsol
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
             cd ~/devsol
             docker compose pull
             docker compose up -d
             docker image prune -f
+
+            # Health check (max 1 min)
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:3100/health >/dev/null 2>&1; then
+                echo "Deployment healthy"
+                exit 0
+              fi
+              echo "Waiting for service ($i/30)..."
+              sleep 2
+            done
+            echo "Health check failed"
+            exit 1
