@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { TransactionDB, type Transaction } from './sqlite.js';
+import { TransactionDB } from './sqlite.js';
 
 describe('TransactionDB', () => {
   let db: TransactionDB;
