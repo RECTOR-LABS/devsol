@@ -27,6 +27,10 @@ export interface X402Config {
 export class X402Service {
   constructor(private cfg: X402Config) {}
 
+  get facilitator(): FacilitatorClient {
+    return this.cfg.facilitator;
+  }
+
   /** Create PaymentRequirements for a given USDC amount */
   createPaymentRequirements(usdcAmount: number): PaymentRequirements {
     return {

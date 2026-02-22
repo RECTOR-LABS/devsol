@@ -26,6 +26,26 @@ import {
 const USDC_MINT = address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const USDC_DECIMALS = 6;
 
+export function usdcToAtomicUnits(usdcAmount: number): bigint {
+  if (usdcAmount < 0) throw new Error('USDC amount cannot be negative');
+  const str = usdcAmount.toFixed(USDC_DECIMALS);
+  const [whole, frac = ''] = str.split('.');
+  const padded = frac.padEnd(USDC_DECIMALS, '0').slice(0, USDC_DECIMALS);
+  return BigInt(whole + padded);
+}
+
+// Errors that won't resolve by retrying — validation failures and
+// Solana-specific terminal states. Expand as production errors surface.
+const NON_RETRYABLE_PATTERNS = [
+  'Amount must be positive',
+  'Payout exceeds max',
+  'insufficient funds',
+  'invalid account',
+  'Blockhash not found',
+  'Transaction already processed',
+  'Program failed to complete',
+];
+
 interface PayoutConfig {
   rpcUrl: string;
   wssUrl: string;
@@ -75,12 +95,27 @@ export class PayoutService {
     return balance >= usdcAmount + this.minReserve;
   }
 
+  private async withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isRetryable = !NON_RETRYABLE_PATTERNS.some((p) => msg.includes(p));
+        if (!isRetryable || attempt > maxRetries) throw err;
+        const delayMs = 1000 * 2 ** (attempt - 1); // 1s, 2s, 4s
+        console.warn(`Payout retry ${attempt}/${maxRetries} after ${delayMs}ms: ${msg}`);
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+  }
+
   async sendUsdc(recipient: string, usdcAmount: number): Promise<string> {
     if (usdcAmount <= 0) throw new Error('Amount must be positive');
     if (usdcAmount > this.maxPayout) throw new Error(`Payout exceeds max: ${this.maxPayout} USDC`);
 
     const recipientAddr = address(recipient);
-    const rawAmount = BigInt(Math.round(usdcAmount * 10 ** USDC_DECIMALS));
+    const rawAmount = usdcToAtomicUnits(usdcAmount);
 
     const [senderAta] = await findAssociatedTokenPda({
       mint: USDC_MINT,
@@ -119,10 +154,15 @@ export class PayoutService {
 
     const signedTx = await signTransactionMessageWithSigners(message);
     const signature = getSignatureFromTransaction(signedTx);
-    // pipe() doesn't narrow the lifetime union — we know it's blockhash from above
-    await this.sendAndConfirm(
-      signedTx as Parameters<typeof this.sendAndConfirm>[0],
-      { commitment: 'confirmed' },
+    // Retrying the same signed tx is idempotent — Solana deduplicates by
+    // signature, and sendAndConfirmTransactionFactory checks existing
+    // confirmation status before resubmitting. Blockhash expiry (~60s) is
+    // not a concern at 3 retries with max ~7s total backoff.
+    await this.withRetry(() =>
+      this.sendAndConfirm(
+        signedTx as Parameters<typeof this.sendAndConfirm>[0],
+        { commitment: 'confirmed' },
+      ),
     );
     return signature;
   }

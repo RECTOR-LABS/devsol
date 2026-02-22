@@ -7,6 +7,7 @@ import { TreasuryService } from './services/treasury.js';
 import { X402Service } from './services/x402.js';
 import { PayoutService } from './services/payout.js';
 import { DepositDetector } from './services/deposit.js';
+import { handleDeposit } from './deposit-handler.js';
 import { config } from './config.js';
 
 async function main() {
@@ -54,37 +55,7 @@ async function main() {
     db,
     rpc: devnetRpc as any,
     treasuryAddress: treasury.address,
-    onDeposit: async (tx, devnetSig) => {
-      console.log(`Deposit confirmed for sell ${tx.id}: ${devnetSig}`);
-      if (!payout) {
-        console.warn(`No payout service — sell ${tx.id} completed without USDC payout`);
-        return;
-      }
-      try {
-        const canPay = await payout.canAffordPayout(tx.usdc_amount);
-        if (!canPay) {
-          console.error(`Insufficient USDC reserves for sell ${tx.id} — refunding`);
-          const refundSig = await treasury.sendSol(tx.wallet, tx.sol_amount);
-          db.update(tx.id, { status: 'refunded' });
-          console.log(`Refunded ${tx.sol_amount} SOL to ${tx.wallet}: ${refundSig}`);
-          return;
-        }
-        const mainnetSig = await payout.sendUsdc(tx.wallet, tx.usdc_amount);
-        db.update(tx.id, { mainnet_payout_tx: mainnetSig });
-        console.log(`USDC payout sent for sell ${tx.id}: ${mainnetSig}`);
-      } catch (err) {
-        console.error(`USDC payout failed for sell ${tx.id}:`, err);
-        // Refund devnet SOL
-        try {
-          const refundSig = await treasury.sendSol(tx.wallet, tx.sol_amount);
-          db.update(tx.id, { status: 'refunded' });
-          console.log(`Refunded ${tx.sol_amount} SOL to ${tx.wallet}: ${refundSig} (original deposit: ${tx.devnet_tx})`);
-        } catch (refundErr) {
-          console.error(`CRITICAL: Refund also failed for sell ${tx.id}:`, refundErr);
-          db.update(tx.id, { status: 'failed' });
-        }
-      }
-    },
+    onDeposit: (tx, sig) => handleDeposit(tx, sig, { payout, treasury, db }),
   });
   depositDetector.start();
 

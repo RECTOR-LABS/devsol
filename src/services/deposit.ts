@@ -46,8 +46,9 @@ export class DepositDetector {
         .send();
 
       for (const sig of sigs) {
-        if (sig.memo) {
-          const matching = pendingSells.find((tx) => tx.memo && sig.memo === tx.memo);
+        if (sig.memo && sig.memo.trim()) {
+          const trimmedMemo = sig.memo.trim();
+          const matching = pendingSells.find((tx) => tx.memo && trimmedMemo === tx.memo);
           if (matching) {
             await this.processDeposit(matching.id, sig.signature);
           }

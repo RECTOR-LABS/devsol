@@ -1,5 +1,31 @@
-import { describe, it, expect, vi } from 'vitest';
-import { PayoutService } from './payout.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { PayoutService, usdcToAtomicUnits } from './payout.js';
+
+describe('usdcToAtomicUnits', () => {
+  it('converts 1 atomic unit (0.000001)', () => {
+    expect(usdcToAtomicUnits(0.000001)).toBe(1n);
+  });
+
+  it('converts max precision (99.999999)', () => {
+    expect(usdcToAtomicUnits(99.999999)).toBe(99_999_999n);
+  });
+
+  it('converts 1.1 to 1100000', () => {
+    expect(usdcToAtomicUnits(1.1)).toBe(1_100_000n);
+  });
+
+  it('converts whole number (10)', () => {
+    expect(usdcToAtomicUnits(10)).toBe(10_000_000n);
+  });
+
+  it('converts typical payout amount (4.75)', () => {
+    expect(usdcToAtomicUnits(4.75)).toBe(4_750_000n);
+  });
+
+  it('throws on negative amount', () => {
+    expect(() => usdcToAtomicUnits(-1)).toThrow('USDC amount cannot be negative');
+  });
+});
 
 describe('PayoutService', () => {
   // We can't call PayoutService.create() in tests without real RPC
@@ -56,6 +82,58 @@ describe('PayoutService', () => {
     it('throws when amount exceeds max payout', async () => {
       const service = createTestService({ balance: 1000, maxPayout: 100, minReserve: 50 });
       await expect(service.sendUsdc('SomeAddr111111111111111111111111111111111111', 150)).rejects.toThrow('Payout exceeds max: 100 USDC');
+    });
+  });
+
+  describe('withRetry', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('retries on network errors then succeeds', async () => {
+      const service = createTestService({ balance: 1000, maxPayout: 100, minReserve: 50 });
+      const withRetry = (service as any).withRetry.bind(service);
+
+      let attempt = 0;
+      const fn = vi.fn(async () => {
+        attempt++;
+        if (attempt <= 2) throw new Error('Connection timeout');
+        return 'success';
+      });
+
+      const promise = withRetry(fn, 3);
+      await vi.advanceTimersByTimeAsync(1000); // retry 1
+      await vi.advanceTimersByTimeAsync(2000); // retry 2
+      const result = await promise;
+      expect(result).toBe('success');
+      expect(fn).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry on non-retryable validation errors', async () => {
+      const service = createTestService({ balance: 1000, maxPayout: 100, minReserve: 50 });
+      const withRetry = (service as any).withRetry.bind(service);
+
+      const fn = vi.fn(async () => {
+        throw new Error('Amount must be positive');
+      });
+
+      await expect(withRetry(fn, 3)).rejects.toThrow('Amount must be positive');
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws after exhausting all retries', async () => {
+      const service = createTestService({ balance: 1000, maxPayout: 100, minReserve: 50 });
+      const withRetry = (service as any).withRetry.bind(service);
+
+      const fn = vi.fn(async () => {
+        throw new Error('RPC node unavailable');
+      });
+
+      const promise = withRetry(fn, 3).catch((e: Error) => e);
+      await vi.runAllTimersAsync();
+      const err = await promise;
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe('RPC node unavailable');
+      expect(fn).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
     });
   });
 });
