@@ -196,12 +196,13 @@ describe('DevSOL App', () => {
     const sellBody = await sellRes.json();
     expect(sellBody.status).toBe('pending');
 
-    // Health detail should include payout info
+    // Health detail should include payout + facilitator info
     const healthRes = await app.request('/health/detail');
     expect(healthRes.status).toBe(200);
     const healthBody = await healthRes.json();
     expect(healthBody.payout_usdc).toBe(500);
     expect(healthBody.payout_wallet).toBe('PayoutWa11et1111111111111111111111111111111');
+    expect(healthBody.facilitator_reachable).toBe(true);
 
     db.close();
   });

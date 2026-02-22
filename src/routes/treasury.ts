@@ -1,7 +1,15 @@
 import { Hono } from 'hono';
 import type { TreasuryService } from '../services/treasury.js';
 
-export function treasuryRoutes(treasury: TreasuryService, payout?: { getUsdcBalance(): Promise<number>; walletAddress: string }) {
+interface FacilitatorHealth {
+  getSupported(): Promise<any>;
+}
+
+export function treasuryRoutes(
+  treasury: TreasuryService,
+  payout?: { getUsdcBalance(): Promise<number>; walletAddress: string },
+  facilitator?: FacilitatorHealth,
+) {
   const router = new Hono();
   router.get('/treasury', async (c) => {
     try {
@@ -19,10 +27,22 @@ export function treasuryRoutes(treasury: TreasuryService, payout?: { getUsdcBala
     try {
       const treasurySol = await treasury.getBalance();
       const payoutUsdc = payout ? await payout.getUsdcBalance() : null;
+
+      let facilitatorReachable: boolean | null = null;
+      if (facilitator) {
+        try {
+          await facilitator.getSupported();
+          facilitatorReachable = true;
+        } catch {
+          facilitatorReachable = false;
+        }
+      }
+
       return c.json({
         treasury_sol: treasurySol,
         payout_usdc: payoutUsdc,
         payout_wallet: payout?.walletAddress ?? null,
+        facilitator_reachable: facilitatorReachable,
       });
     } catch {
       return c.json({ error: 'Health check failed' }, 503);

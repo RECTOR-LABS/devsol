@@ -64,7 +64,7 @@ export function createApp(deps?: AppDeps) {
   app.route('/', txRoutes(db));
 
   if (deps?.treasury && deps?.x402) {
-    app.route('/', treasuryRoutes(deps.treasury, deps.payout));
+    app.route('/', treasuryRoutes(deps.treasury, deps.payout, deps.x402?.facilitator));
     app.route('/', buyRoutes({ db, pricing, treasury: deps.treasury, x402: deps.x402 }));
     app.route('/', sellRoutes({ db, pricing, treasuryAddress: deps.treasury.address, payout: deps.payout }));
   }
