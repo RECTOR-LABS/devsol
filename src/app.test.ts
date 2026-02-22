@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { createApp } from './app.js';
 import { PricingService } from './services/pricing.js';
 import { TransactionDB } from './db/sqlite.js';
-import { X402Service } from './services/x402.js';
 import type { PayoutService } from './services/payout.js';
 
 function makeDeps() {
@@ -17,18 +16,6 @@ function makeTreasuryStub() {
     getBalance: async () => 100,
     sendSol: async () => 'fakeSig123',
   };
-}
-
-function makeX402() {
-  return new X402Service({
-    facilitator: {
-      verify: async () => ({ isValid: true }),
-      settle: async () => ({ success: true, transaction: 'fakeTx', network: 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1' as const }),
-      getSupported: async () => ({ kinds: [], extensions: [], signers: {} }),
-    },
-    payTo: 'FakeAddr1111111111111111111111111111111111111',
-    network: 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
-  });
 }
 
 function makePayoutStub(): PayoutService {
@@ -108,7 +95,7 @@ describe('DevSOL App', () => {
     db.close();
   });
 
-  it('does NOT mount buy/sell routes without treasury and x402', async () => {
+  it('does NOT mount buy/sell routes without treasury', async () => {
     const { db, pricing } = makeDeps();
     const { app } = createApp({ pricing, db });
 
@@ -121,24 +108,24 @@ describe('DevSOL App', () => {
     db.close();
   });
 
-  it('mounts buy/sell routes when treasury AND x402 are provided', async () => {
+  it('mounts buy/sell routes when treasury is provided', async () => {
     const { db, pricing } = makeDeps();
     const treasury = makeTreasuryStub();
-    const x402 = makeX402();
     const { app } = createApp({
       pricing,
       db,
       treasury: treasury as any,
-      x402,
     });
 
-    // Buy without payment header -> 402
+    // Buy -> should create pending deposit tx
     const buyRes = await app.request('/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wallet: 'TestWa11et111XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 1 }),
     });
-    expect(buyRes.status).toBe(402);
+    expect(buyRes.status).toBe(200);
+    const buyBody = await buyRes.json();
+    expect(buyBody.status).toBe('pending');
 
     // Sell -> should create pending tx
     const sellRes = await app.request('/sell', {
@@ -154,15 +141,13 @@ describe('DevSOL App', () => {
     db.close();
   });
 
-  it('mounts treasury routes when treasury and x402 provided', async () => {
+  it('mounts treasury routes when treasury provided', async () => {
     const { db, pricing } = makeDeps();
     const treasury = makeTreasuryStub();
-    const x402 = makeX402();
     const { app } = createApp({
       pricing,
       db,
       treasury: treasury as any,
-      x402,
     });
 
     const res = await app.request('/treasury');
@@ -176,10 +161,9 @@ describe('DevSOL App', () => {
   it('applies stricter rate limit (10/min) on /sell endpoint', async () => {
     const { db, pricing } = makeDeps();
     const treasury = makeTreasuryStub();
-    const x402 = makeX402();
     const payout = makePayoutStub();
     const { app } = createApp({
-      pricing, db, treasury: treasury as any, x402, payout,
+      pricing, db, treasury: treasury as any, payout,
     });
 
     const sellBody = JSON.stringify({ wallet: 'TestWa11et111XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 1 });
@@ -205,13 +189,11 @@ describe('DevSOL App', () => {
   it('accepts payout as optional dep and wires to routes', async () => {
     const { db, pricing } = makeDeps();
     const treasury = makeTreasuryStub();
-    const x402 = makeX402();
     const payout = makePayoutStub();
     const { app } = createApp({
       pricing,
       db,
       treasury: treasury as any,
-      x402,
       payout,
     });
 
@@ -225,13 +207,12 @@ describe('DevSOL App', () => {
     const sellBody = await sellRes.json();
     expect(sellBody.status).toBe('pending');
 
-    // Health detail should include payout + facilitator info
+    // Health detail should include payout info
     const healthRes = await app.request('/health/detail');
     expect(healthRes.status).toBe(200);
     const healthBody = await healthRes.json();
     expect(healthBody.payout_usdc).toBe(500);
     expect(healthBody.payout_wallet).toBe('PayoutWa11et1111111111111111111111111111111');
-    expect(healthBody.facilitator_reachable).toBe(true);
 
     db.close();
   });

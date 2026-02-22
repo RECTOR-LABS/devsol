@@ -1,14 +1,9 @@
 import { Hono } from 'hono';
 import type { TreasuryService } from '../services/treasury.js';
 
-interface FacilitatorHealth {
-  getSupported(): Promise<any>;
-}
-
 export function treasuryRoutes(
   treasury: TreasuryService,
   payout?: { getUsdcBalance(): Promise<number>; walletAddress: string },
-  facilitator?: FacilitatorHealth,
 ) {
   const router = new Hono();
   router.get('/treasury', async (c) => {
@@ -28,24 +23,10 @@ export function treasuryRoutes(
       const treasurySol = await treasury.getBalance();
       const payoutUsdc = payout ? await payout.getUsdcBalance() : null;
 
-      let facilitatorReachable: boolean | null = null;
-      if (facilitator) {
-        try {
-          const timeout = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Facilitator health timeout')), 5_000),
-          );
-          await Promise.race([facilitator.getSupported(), timeout]);
-          facilitatorReachable = true;
-        } catch {
-          facilitatorReachable = false;
-        }
-      }
-
       return c.json({
         treasury_sol: treasurySol,
         payout_usdc: payoutUsdc,
         payout_wallet: payout?.walletAddress ?? null,
-        facilitator_reachable: facilitatorReachable,
       });
     } catch {
       return c.json({ error: 'Health check failed' }, 503);

@@ -57,50 +57,5 @@ describe('GET /treasury', () => {
     expect(body.treasury_sol).toBe(6842.5);
     expect(body.payout_usdc).toBeNull();
     expect(body.payout_wallet).toBeNull();
-    expect(body.facilitator_reachable).toBeNull();
-  });
-
-  it('GET /health/detail returns facilitator_reachable: true when facilitator responds', async () => {
-    const mockFacilitator = {
-      getSupported: vi.fn(async () => ({ kinds: [], extensions: [] })),
-    };
-    const facApp = new Hono();
-    facApp.route('/', treasuryRoutes(mockTreasury as any, undefined, mockFacilitator));
-
-    const res = await facApp.request('/health/detail');
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.facilitator_reachable).toBe(true);
-    expect(mockFacilitator.getSupported).toHaveBeenCalled();
-  });
-
-  it('GET /health/detail returns facilitator_reachable: false when facilitator throws', async () => {
-    const mockFacilitator = {
-      getSupported: vi.fn(async () => { throw new Error('Connection refused'); }),
-    };
-    const facApp = new Hono();
-    facApp.route('/', treasuryRoutes(mockTreasury as any, undefined, mockFacilitator));
-
-    const res = await facApp.request('/health/detail');
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.facilitator_reachable).toBe(false);
-  });
-
-  it('GET /health/detail returns facilitator_reachable: false on timeout', async () => {
-    vi.useFakeTimers();
-    const mockFacilitator = {
-      getSupported: vi.fn(() => new Promise(() => {})), // never resolves
-    };
-    const facApp = new Hono();
-    facApp.route('/', treasuryRoutes(mockTreasury as any, undefined, mockFacilitator));
-
-    const resPromise = facApp.request('/health/detail');
-    await vi.advanceTimersByTimeAsync(5_000);
-    const res = await resPromise;
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.facilitator_reachable).toBe(false);
-    vi.useRealTimers();
   });
 });

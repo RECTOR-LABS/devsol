@@ -1,13 +1,14 @@
 import { serve } from '@hono/node-server';
 import { readFileSync } from 'fs';
-import { createSolanaRpc } from '@solana/kit';
-import { HTTPFacilitatorClient } from '@x402/core/http';
+import { address, createSolanaRpc } from '@solana/kit';
+import { findAssociatedTokenPda, TOKEN_PROGRAM_ADDRESS } from '@solana-program/token';
 import { createApp } from './app.js';
 import { TreasuryService } from './services/treasury.js';
-import { X402Service } from './services/x402.js';
 import { PayoutService } from './services/payout.js';
 import { DepositDetector } from './services/deposit.js';
 import { handleDeposit } from './deposit-handler.js';
+import { BuyDepositDetector } from './services/buy-deposit.js';
+import { handleBuyDeposit } from './buy-deposit-handler.js';
 import { config } from './config.js';
 
 async function main() {
@@ -19,9 +20,6 @@ async function main() {
     wssUrl: config.devnetWss,
     keypairBytes,
   });
-
-  // x402 facilitator (real)
-  const facilitator = new HTTPFacilitatorClient({ url: config.facilitatorUrl });
 
   // Mainnet payout (USDC) — optional, enables sell flow
   let payout: PayoutService | undefined;
@@ -40,14 +38,7 @@ async function main() {
     console.warn('WARNING: No mainnet keypair configured — sell payouts disabled');
   }
 
-  // x402 payTo: mainnet payout wallet if available, else devnet treasury
-  const x402 = new X402Service({
-    facilitator,
-    payTo: payout?.walletAddress ?? treasury.address,
-    network: config.svmNetwork,
-  });
-
-  const { app, db } = createApp({ treasury, x402, payout });
+  const { app, db } = createApp({ treasury, payout });
 
   // Deposit detector with payout callback
   const devnetRpc = createSolanaRpc(config.devnetRpc);
@@ -59,9 +50,28 @@ async function main() {
   });
   depositDetector.start();
 
+  // Buy deposit detector (mainnet USDC)
+  let buyDetector: BuyDepositDetector | undefined;
+  if (payout) {
+    const mainnetRpc = createSolanaRpc(config.mainnetRpc);
+    const [usdcAta] = await findAssociatedTokenPda({
+      mint: address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
+      owner: address(payout.walletAddress),
+      tokenProgram: TOKEN_PROGRAM_ADDRESS,
+    });
+    buyDetector = new BuyDepositDetector({
+      db,
+      rpc: mainnetRpc as any,
+      usdcAtaAddress: usdcAta.toString(),
+      onDeposit: (tx, sig) => handleBuyDeposit(tx, sig, { treasury, payout, db }),
+    });
+    buyDetector.start();
+  }
+
   // Graceful shutdown
   const shutdown = () => {
     depositDetector.stop();
+    buyDetector?.stop();
     db.close();
     process.exit(0);
   };

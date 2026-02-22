@@ -8,7 +8,6 @@ import { buyRoutes } from './routes/buy.js';
 import { sellRoutes } from './routes/sell.js';
 import { PricingService } from './services/pricing.js';
 import type { TreasuryService } from './services/treasury.js';
-import type { X402Service } from './services/x402.js';
 import type { PayoutService } from './services/payout.js';
 import { TransactionDB } from './db/sqlite.js';
 import { config } from './config.js';
@@ -22,7 +21,6 @@ interface AppDeps {
   pricing?: PricingService;
   treasury?: TreasuryService;
   db?: TransactionDB;
-  x402?: X402Service;
   payout?: PayoutService;
 }
 
@@ -97,7 +95,7 @@ export function createApp(deps?: AppDeps) {
   app.route('/', priceRoutes(pricing));
   app.route('/', txRoutes(db));
 
-  if (deps?.treasury && deps?.x402) {
+  if (deps?.treasury) {
     // Stricter rate limit for state-changing endpoints
     const strictPrefixes = ['/buy', '/sell'];
     app.use('*', async (c, next) => {
@@ -111,8 +109,8 @@ export function createApp(deps?: AppDeps) {
       await next();
     });
 
-    app.route('/', treasuryRoutes(deps.treasury, deps.payout, deps.x402?.facilitator));
-    app.route('/', buyRoutes({ db, pricing, treasury: deps.treasury, x402: deps.x402 }));
+    app.route('/', treasuryRoutes(deps.treasury, deps.payout));
+    app.route('/', buyRoutes({ db, pricing, treasury: deps.treasury, payoutAddress: deps.payout?.walletAddress ?? '' }));
     app.route('/', sellRoutes({ db, pricing, treasuryAddress: deps.treasury.address, payout: deps.payout }));
   }
 
