@@ -8,7 +8,8 @@ Devnet SOL marketplace. Users buy devnet SOL with mainnet USDC or sell devnet SO
 - **Framework**: Hono + @hono/node-server
 - **Solana**: @solana/kit, @solana-program/system, @solana-program/token, @solana-program/memo
 - **DB**: better-sqlite3 (file-based, single table `transactions`)
-- **Testing**: Vitest (15 test files, 101 tests)
+- **Logging**: pino (structured JSON logging)
+- **Testing**: Vitest (16 test files, 112 tests)
 - **Package Manager**: pnpm
 
 ## Commands
@@ -26,7 +27,7 @@ pnpm exec tsc --noEmit  # type-check without emitting
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Basic health check |
-| GET | `/health/detail` | Treasury SOL + payout USDC balances |
+| GET | `/health/detail` | Treasury SOL + payout USDC balances + pending orders |
 | GET | `/treasury` | Treasury address, balance, status |
 | GET | `/price?amount_sol=N` | Buy/sell quotes |
 | GET | `/tx/:id` | Transaction status lookup |
@@ -37,7 +38,8 @@ pnpm exec tsc --noEmit  # type-check without emitting
 
 ```
 src/
-  index.ts              # Entry — wires services, starts server + both deposit detectors
+  index.ts              # Entry — wires services, starts server + both deposit detectors + expiry cleanup
+  logger.ts             # Pino structured logger with createLogger() factory
   app.ts                # Hono app, rate limiter, CORS, route mounting
   config.ts             # All env vars with defaults
   deposit-handler.ts    # Sell onDeposit callback (payout or refund logic)
@@ -53,10 +55,10 @@ src/
     treasury.ts         # Devnet SOL transfers (sendSol, getBalance)
     payout.ts           # Mainnet USDC payouts (sendUsdc, canAffordPayout) with retry
     pricing.ts          # Rate-based quotes (buy=1.05, sell=0.95 USDC/SOL)
-    deposit.ts          # Polls devnet for incoming SOL deposits (sell flow), matches by memo
-    buy-deposit.ts      # Polls mainnet for incoming USDC deposits (buy flow), matches by memo
+    deposit.ts          # Polls devnet for incoming SOL deposits (sell flow), matches by memo + verifies amount
+    buy-deposit.ts      # Polls mainnet for incoming USDC deposits (buy flow), matches by memo + verifies amount
   db/
-    sqlite.ts           # TransactionDB — CRUD, atomicComplete/Buy, findPendingSells/Buys
+    sqlite.ts           # TransactionDB — CRUD, atomicComplete/Buy, findPendingSells/Buys, expireStale
 scripts/
   buy-e2e.ts            # Buy flow E2E test (mainnet USDC → devnet SOL)
   sell-e2e.ts           # Sell flow E2E test (devnet SOL → mainnet USDC)
@@ -79,6 +81,10 @@ scripts/
 - Buy route pre-checks treasury SOL balance before accepting orders
 - Sell route pre-checks payout USDC reserves before accepting orders
 - Both detectors require mainnet keypair (`DEVSOL_MAINNET_KEYPAIR`) to be configured
+- Both detectors verify on-chain transfer amounts before processing (SOL: 0.1% tolerance, USDC: exact)
+- Pending orders expire after 30 minutes — cleanup job runs every 60s
+- Low balance alerts log errors when treasury SOL < 10 or payout USDC < 10
+- Structured logging via pino (set `LOG_LEVEL` env var to control verbosity)
 
 ## Environment Variables
 

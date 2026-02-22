@@ -7,7 +7,7 @@
 
 ## Phase 0: Infra (Immediate)
 
-- [ ] Add `mirror-gitlab.yml` workflow (force-push main to GitLab on every push)
+- [x] Add `mirror-gitlab.yml` workflow (force-push main to GitLab on every push)
 - [ ] Update README.md with current API docs
 
 ---
@@ -18,24 +18,24 @@ Harden the existing backend before adding user-facing surfaces.
 
 ### 1.1 Transaction Expiry
 
-- [ ] Add `expires_at` column to transactions table (default: `created_at + 30 min`)
-- [ ] Cleanup job runs every 60s, marks expired pending orders as `expired`
-- [ ] Deposit detectors skip expired transactions in `findPendingBuys/Sells`
-- [ ] Add `expired` to valid status enum in schema
+- [x] Add `expires_at` column to transactions table (default: `created_at + 30 min`)
+- [x] Cleanup job runs every 60s, marks expired pending orders as `expired`
+- [x] Deposit detectors skip expired transactions in `findPendingBuys/Sells`
+- [x] Add `expired` to valid status enum in schema
 
 ### 1.2 Amount Verification
 
-- [ ] Deposit detectors fetch on-chain transaction details after memo match
-- [ ] Verify actual transferred amount matches expected `usdc_amount` (buy) or `sol_amount` (sell)
-- [ ] Tolerance: exact match for USDC (atomic units), 0.1% for SOL (tx fees)
-- [ ] Amount mismatch: mark as `failed` with reason, don't deliver/payout
+- [x] Deposit detectors fetch on-chain transaction details after memo match
+- [x] Verify actual transferred amount matches expected `usdc_amount` (buy) or `sol_amount` (sell)
+- [x] Tolerance: exact match for USDC (atomic units), 0.1% for SOL (tx fees)
+- [x] Amount mismatch: mark as `failed` with reason, don't deliver/payout
 
 ### 1.3 Monitoring & Logging
 
-- [ ] Replace `console.log/warn/error` with `pino` structured logger
-- [ ] Log levels: info (normal flow), warn (retries), error (failures)
-- [ ] Low balance alerts: log error when treasury SOL < 10 or payout USDC < 10
-- [ ] Extend `/health/detail` with `pending_orders` count and `last_completed_at`
+- [x] Replace `console.log/warn/error` with `pino` structured logger
+- [x] Log levels: info (normal flow), warn (retries), error (failures)
+- [x] Low balance alerts: log error when treasury SOL < 10 or payout USDC < 10
+- [x] Extend `/health/detail` with `pending_orders` count
 
 ---
 
@@ -90,4 +90,9 @@ Additive features once the marketplace has users and volume.
 - [x] Balance pre-checks (treasury SOL for buy, payout USDC for sell)
 - [x] Docker deployment on VPS with GitHub Actions CI
 - [x] E2E test scripts (buy + sell, both verified live)
-- [x] 101 unit tests across 15 test files
+- [x] 112 unit tests across 16 test files
+- [x] GitLab mirror workflow (Phase 0)
+- [x] Transaction expiry with 30min TTL + cleanup job (Phase 1)
+- [x] On-chain deposit amount verification (Phase 1)
+- [x] Pino structured logging replacing all console.* (Phase 1)
+- [x] Low balance alerts + pending_orders in /health/detail (Phase 1)
