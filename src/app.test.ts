@@ -3,6 +3,7 @@ import { createApp } from './app.js';
 import { PricingService } from './services/pricing.js';
 import { TransactionDB } from './db/sqlite.js';
 import { X402Service } from './services/x402.js';
+import type { PayoutService } from './services/payout.js';
 
 function makeDeps() {
   const db = new TransactionDB(':memory:');
@@ -28,6 +29,15 @@ function makeX402() {
     payTo: 'FakeAddr1111111111111111111111111111111111111',
     network: 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
   });
+}
+
+function makePayoutStub(): PayoutService {
+  return {
+    walletAddress: 'PayoutWa11et1111111111111111111111111111111',
+    getUsdcBalance: async () => 500,
+    canAffordPayout: async () => true,
+    sendUsdc: async () => 'fakePayoutSig123',
+  } as unknown as PayoutService;
 }
 
 describe('DevSOL App', () => {
@@ -159,6 +169,39 @@ describe('DevSOL App', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.address).toBe(treasury.address);
+
+    db.close();
+  });
+
+  it('accepts payout as optional dep and wires to routes', async () => {
+    const { db, pricing } = makeDeps();
+    const treasury = makeTreasuryStub();
+    const x402 = makeX402();
+    const payout = makePayoutStub();
+    const { app } = createApp({
+      pricing,
+      db,
+      treasury: treasury as any,
+      x402,
+      payout,
+    });
+
+    // Sell should work with payout wired
+    const sellRes = await app.request('/sell', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet: 'TestWa11et111XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 1 }),
+    });
+    expect(sellRes.status).toBe(200);
+    const sellBody = await sellRes.json();
+    expect(sellBody.status).toBe('pending');
+
+    // Health detail should include payout info
+    const healthRes = await app.request('/health/detail');
+    expect(healthRes.status).toBe(200);
+    const healthBody = await healthRes.json();
+    expect(healthBody.payout_usdc).toBe(500);
+    expect(healthBody.payout_wallet).toBe('PayoutWa11et1111111111111111111111111111111');
 
     db.close();
   });

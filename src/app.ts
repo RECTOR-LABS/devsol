@@ -9,6 +9,7 @@ import { sellRoutes } from './routes/sell.js';
 import { PricingService } from './services/pricing.js';
 import type { TreasuryService } from './services/treasury.js';
 import type { X402Service } from './services/x402.js';
+import type { PayoutService } from './services/payout.js';
 import { TransactionDB } from './db/sqlite.js';
 import { config } from './config.js';
 
@@ -21,6 +22,7 @@ interface AppDeps {
   treasury?: TreasuryService;
   db?: TransactionDB;
   x402?: X402Service;
+  payout?: PayoutService;
 }
 
 export function createApp(deps?: AppDeps) {
@@ -62,9 +64,9 @@ export function createApp(deps?: AppDeps) {
   app.route('/', txRoutes(db));
 
   if (deps?.treasury && deps?.x402) {
-    app.route('/', treasuryRoutes(deps.treasury));
+    app.route('/', treasuryRoutes(deps.treasury, deps.payout));
     app.route('/', buyRoutes({ db, pricing, treasury: deps.treasury, x402: deps.x402 }));
-    app.route('/', sellRoutes({ db, pricing, treasuryAddress: deps.treasury.address }));
+    app.route('/', sellRoutes({ db, pricing, treasuryAddress: deps.treasury.address, payout: deps.payout }));
   }
 
   return { app, db, pricing };
