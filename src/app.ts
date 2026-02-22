@@ -11,6 +11,9 @@ import type { TreasuryService } from './services/treasury.js';
 import type { PayoutService } from './services/payout.js';
 import { TransactionDB } from './db/sqlite.js';
 import { config } from './config.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('rate-limit');
 
 const RATE_LIMIT_MAX = 60;
 const RATE_LIMIT_STRICT_MAX = 10;
@@ -84,7 +87,7 @@ export function createApp(deps?: AppDeps) {
     }
 
     if (!checkRateLimit(rateLimits, ip, RATE_LIMIT_MAX, now)) {
-      console.warn(`Rate limit hit: ${ip} on ${c.req.path}`);
+      log.warn(`Rate limit hit: ${ip} on ${c.req.path}`);
       return c.json({ error: 'Rate limit exceeded' }, 429);
     }
     await next();
@@ -103,7 +106,7 @@ export function createApp(deps?: AppDeps) {
       const ip = getClientIp(c.req.header('x-forwarded-for'));
       const now = Date.now();
       if (!checkRateLimit(strictRateLimits, ip, RATE_LIMIT_STRICT_MAX, now)) {
-        console.warn(`Strict rate limit hit: ${ip} on ${c.req.path}`);
+        log.warn(`Strict rate limit hit: ${ip} on ${c.req.path}`);
         return c.json({ error: 'Rate limit exceeded' }, 429);
       }
       await next();

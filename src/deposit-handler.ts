@@ -1,4 +1,7 @@
 import type { Transaction, UpdateTransactionInput } from './db/sqlite.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('sell-handler');
 
 interface DepositDeps {
   payout?: {
@@ -18,34 +21,34 @@ export async function handleDeposit(
   devnetSig: string,
   deps: DepositDeps,
 ): Promise<void> {
-  console.log(`Deposit confirmed for sell ${tx.id}: ${devnetSig}`);
+  log.info(`Deposit confirmed for sell ${tx.id}: ${devnetSig}`);
 
   if (!deps.payout) {
-    console.warn(`No payout service — sell ${tx.id} completed without USDC payout`);
+    log.warn(`No payout service — sell ${tx.id} completed without USDC payout`);
     return;
   }
 
   try {
     const canPay = await deps.payout.canAffordPayout(tx.usdc_amount);
     if (!canPay) {
-      console.error(`Insufficient USDC reserves for sell ${tx.id} — refunding`);
+      log.error(`Insufficient USDC reserves for sell ${tx.id} — refunding`);
       const refundSig = await deps.treasury.sendSol(tx.wallet, tx.sol_amount);
       deps.db.update(tx.id, { status: 'refunded' });
-      console.log(`Refunded ${tx.sol_amount} SOL to ${tx.wallet}: ${refundSig}`);
+      log.info(`Refunded ${tx.sol_amount} SOL to ${tx.wallet}: ${refundSig}`);
       return;
     }
 
     const mainnetSig = await deps.payout.sendUsdc(tx.wallet, tx.usdc_amount);
     deps.db.update(tx.id, { mainnet_payout_tx: mainnetSig });
-    console.log(`USDC payout sent for sell ${tx.id}: ${mainnetSig}`);
+    log.info(`USDC payout sent for sell ${tx.id}: ${mainnetSig}`);
   } catch (err) {
-    console.error(`USDC payout failed for sell ${tx.id}:`, err);
+    log.error({ err }, `USDC payout failed for sell ${tx.id}`);
     try {
       const refundSig = await deps.treasury.sendSol(tx.wallet, tx.sol_amount);
       deps.db.update(tx.id, { status: 'refunded' });
-      console.log(`Refunded ${tx.sol_amount} SOL to ${tx.wallet}: ${refundSig} (original deposit: ${tx.devnet_tx})`);
+      log.info(`Refunded ${tx.sol_amount} SOL to ${tx.wallet}: ${refundSig} (original deposit: ${tx.devnet_tx})`);
     } catch (refundErr) {
-      console.error(`CRITICAL: Refund also failed for sell ${tx.id}:`, refundErr);
+      log.error({ err: refundErr }, `CRITICAL: Refund also failed for sell ${tx.id}`);
       deps.db.update(tx.id, { status: 'failed' });
     }
   }

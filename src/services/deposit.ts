@@ -1,4 +1,7 @@
 import type { TransactionDB, Transaction } from '../db/sqlite.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('sell-detector');
 
 // Narrow interface for what we actually use — real @solana/kit Rpc is cast to this at call site
 interface SolanaRpc {
@@ -29,9 +32,9 @@ export class DepositDetector {
   start() {
     const intervalMs = this.cfg.pollIntervalMs ?? 15_000;
     this.interval = setInterval(() => {
-      this.poll().catch((err) => console.error('Deposit poll fatal:', err));
+      this.poll().catch((err) => log.error({ err }, 'Deposit poll fatal'));
     }, intervalMs);
-    console.log(`Deposit detector started (polling every ${intervalMs}ms)`);
+    log.info(`Deposit detector started (polling every ${intervalMs}ms)`);
   }
 
   stop() {
@@ -77,14 +80,14 @@ export class DepositDetector {
             if (amountOk) {
               await this.processDeposit(matching.id, sig.signature);
             } else {
-              console.error(`Amount mismatch for sell ${matching.id} (sig: ${sig.signature})`);
+              log.error(`Amount mismatch for sell ${matching.id} (sig: ${sig.signature})`);
               this.cfg.db.update(matching.id, { status: 'failed' });
             }
           }
         }
       }
     } catch (err) {
-      console.error('Deposit poll error:', err);
+      log.error({ err }, 'Deposit poll error');
     }
   }
 

@@ -10,6 +10,9 @@ import { handleDeposit } from './deposit-handler.js';
 import { BuyDepositDetector } from './services/buy-deposit.js';
 import { handleBuyDeposit } from './buy-deposit-handler.js';
 import { config } from './config.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('server');
 
 async function main() {
   // Devnet treasury (SOL)
@@ -33,9 +36,9 @@ async function main() {
       maxPayoutUsdc: config.maxPayoutUsdc,
       minReserveUsdc: config.minReserveUsdc,
     });
-    console.log(`Payout wallet: ${payout.walletAddress}`);
+    log.info(`Payout wallet: ${payout.walletAddress}`);
   } else {
-    console.warn('WARNING: No mainnet keypair configured — sell payouts disabled');
+    log.warn('No mainnet keypair configured — sell payouts disabled');
   }
 
   const { app, db } = createApp({ treasury, payout });
@@ -71,7 +74,7 @@ async function main() {
   // Expiry cleanup — run every 60s
   const expiryInterval = setInterval(() => {
     const count = db.expireStale();
-    if (count > 0) console.log(`Expired ${count} stale pending transactions`);
+    if (count > 0) log.info(`Expired ${count} stale pending transactions`);
   }, 60_000);
 
   // Graceful shutdown
@@ -86,9 +89,9 @@ async function main() {
   process.on('SIGINT', shutdown);
 
   serve({ fetch: app.fetch, port: config.port }, (info) => {
-    console.log(`DevSOL running on http://localhost:${info.port}`);
-    console.log(`Treasury: ${treasury.address}`);
+    log.info(`DevSOL running on http://localhost:${info.port}`);
+    log.info(`Treasury: ${treasury.address}`);
   });
 }
 
-main().catch(console.error);
+main().catch((err) => log.error({ err }, 'Fatal startup error'));

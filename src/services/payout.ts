@@ -24,6 +24,9 @@ import {
 } from '@solana-program/token';
 
 const USDC_MINT = address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+import { createLogger } from '../logger.js';
+
+const log = createLogger('payout');
 const USDC_DECIMALS = 6;
 
 export function usdcToAtomicUnits(usdcAmount: number): bigint {
@@ -104,7 +107,7 @@ export class PayoutService {
         const isRetryable = !NON_RETRYABLE_PATTERNS.some((p) => msg.includes(p));
         if (!isRetryable || attempt > maxRetries) throw err;
         const delayMs = 1000 * 2 ** (attempt - 1); // 1s, 2s, 4s
-        console.warn(`Payout retry ${attempt}/${maxRetries} after ${delayMs}ms: ${msg}`);
+        log.warn(`Payout retry ${attempt}/${maxRetries} after ${delayMs}ms: ${msg}`);
         await new Promise((r) => setTimeout(r, delayMs));
       }
     }
