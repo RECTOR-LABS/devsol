@@ -5,7 +5,17 @@ interface SolanaRpc {
   getSignaturesForAddress(address: any, opts: any): {
     send(): Promise<Array<{ memo: string | null; signature: string }>>;
   };
+  getTransaction(signature: any, opts: any): {
+    send(): Promise<{
+      meta: {
+        preTokenBalances: Array<{ mint: string; uiTokenAmount: { uiAmount: number } }>;
+        postTokenBalances: Array<{ mint: string; uiTokenAmount: { uiAmount: number } }>;
+      } | null;
+    } | null>;
+  };
 }
+
+const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 interface BuyDepositConfig {
   db: TransactionDB;
@@ -36,6 +46,22 @@ export class BuyDepositDetector {
     }
   }
 
+  async verifyUsdcAmount(sig: string, expectedUsdc: number): Promise<boolean> {
+    try {
+      const txDetail = await this.cfg.rpc.getTransaction(sig, {
+        maxSupportedTransactionVersion: 0,
+      }).send();
+      if (!txDetail?.meta) return false;
+      const { preTokenBalances, postTokenBalances } = txDetail.meta;
+      const preBal = preTokenBalances.find(b => b.mint === USDC_MINT)?.uiTokenAmount.uiAmount ?? 0;
+      const postBal = postTokenBalances.find(b => b.mint === USDC_MINT)?.uiTokenAmount.uiAmount ?? 0;
+      const received = postBal - preBal;
+      return received >= expectedUsdc;
+    } catch {
+      return false;
+    }
+  }
+
   async poll() {
     const pendingBuys = this.cfg.db.findPendingBuys();
     if (pendingBuys.length === 0) return;
@@ -53,7 +79,13 @@ export class BuyDepositDetector {
           if (!cleanMemo) continue;
           const matching = pendingBuys.find((tx) => tx.memo && cleanMemo === tx.memo);
           if (matching) {
-            await this.processDeposit(matching.id, sig.signature);
+            const amountOk = await this.verifyUsdcAmount(sig.signature, matching.usdc_amount);
+            if (amountOk) {
+              await this.processDeposit(matching.id, sig.signature);
+            } else {
+              console.error(`Amount mismatch for buy ${matching.id} (sig: ${sig.signature})`);
+              this.cfg.db.update(matching.id, { status: 'failed' });
+            }
           }
         }
       }

@@ -8,6 +8,14 @@ describe('BuyDepositDetector', () => {
     getSignaturesForAddress: vi.fn(() => ({
       send: vi.fn(async () => []),
     })),
+    getTransaction: vi.fn(() => ({
+      send: vi.fn(async () => ({
+        meta: {
+          preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 0 } }],
+          postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 100 } }],
+        },
+      })),
+    })),
   };
 
   beforeEach(() => {
@@ -28,6 +36,14 @@ describe('BuyDepositDetector', () => {
         send: vi.fn(async () => [
           { memo: '[15] devsol-buy1', signature: 'mainnet_usdc_sig' },
         ]),
+      })),
+      getTransaction: vi.fn(() => ({
+        send: vi.fn(async () => ({
+          meta: {
+            preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 0 } }],
+            postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 100 } }],
+          },
+        })),
       })),
     };
 
@@ -69,6 +85,14 @@ describe('BuyDepositDetector', () => {
           { memo: '[16] devsol-strip1', signature: 'prefix_sig' },
         ]),
       })),
+      getTransaction: vi.fn(() => ({
+        send: vi.fn(async () => ({
+          meta: {
+            preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 0 } }],
+            postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 100 } }],
+          },
+        })),
+      })),
     };
 
     const detector = new BuyDepositDetector({
@@ -91,6 +115,14 @@ describe('BuyDepositDetector', () => {
         send: vi.fn(async () => [
           { memo: 'devsol-sell1', signature: 'sell_sig' },
         ]),
+      })),
+      getTransaction: vi.fn(() => ({
+        send: vi.fn(async () => ({
+          meta: {
+            preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 0 } }],
+            postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 100 } }],
+          },
+        })),
       })),
     };
 
@@ -117,6 +149,14 @@ describe('BuyDepositDetector', () => {
         send: vi.fn(async () => [
           { memo: '[18] devsol-delivery1', signature: 'delivery_sig' },
         ]),
+      })),
+      getTransaction: vi.fn(() => ({
+        send: vi.fn(async () => ({
+          meta: {
+            preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 0 } }],
+            postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 100 } }],
+          },
+        })),
       })),
     };
 
@@ -147,6 +187,14 @@ describe('BuyDepositDetector', () => {
           { memo: '  devsol-padded1  ', signature: 'padded_sig' },
         ]),
       })),
+      getTransaction: vi.fn(() => ({
+        send: vi.fn(async () => ({
+          meta: {
+            preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 0 } }],
+            postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 100 } }],
+          },
+        })),
+      })),
     };
 
     const detector = new BuyDepositDetector({
@@ -171,6 +219,14 @@ describe('BuyDepositDetector', () => {
           { memo: '   ', signature: 'whitespace_sig' },
         ]),
       })),
+      getTransaction: vi.fn(() => ({
+        send: vi.fn(async () => ({
+          meta: {
+            preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 0 } }],
+            postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 100 } }],
+          },
+        })),
+      })),
     };
 
     const detector = new BuyDepositDetector({
@@ -191,6 +247,14 @@ describe('BuyDepositDetector', () => {
           { memo: 'xdevsol-abcx', signature: 'wrong_sig' },
         ]),
       })),
+      getTransaction: vi.fn(() => ({
+        send: vi.fn(async () => ({
+          meta: {
+            preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 0 } }],
+            postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 100 } }],
+          },
+        })),
+      })),
     };
 
     const detector = new BuyDepositDetector({
@@ -199,5 +263,66 @@ describe('BuyDepositDetector', () => {
 
     await detector.poll();
     expect(onDeposit).not.toHaveBeenCalled();
+  });
+
+  it('verifies USDC deposit amount matches expected and calls onDeposit', async () => {
+    const onDeposit = vi.fn();
+    const tx = db.create({
+      type: 'buy', wallet: 'buyer1', sol_amount: 1, usdc_amount: 1.05, memo: 'devsol-buyverify1',
+    });
+
+    const rpcWithAmount = {
+      getSignaturesForAddress: vi.fn(() => ({
+        send: vi.fn(async () => [
+          { memo: '[20] devsol-buyverify1', signature: 'buy_verified_sig' },
+        ]),
+      })),
+      getTransaction: vi.fn(() => ({
+        send: vi.fn(async () => ({
+          meta: {
+            preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 10 } }],
+            postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 11.05 } }],
+          },
+        })),
+      })),
+    };
+
+    const detector = new BuyDepositDetector({
+      db, rpc: rpcWithAmount as any, usdcAtaAddress: 'ATA', onDeposit,
+    });
+
+    await detector.poll();
+    expect(onDeposit).toHaveBeenCalledWith(expect.objectContaining({ id: tx.id }), 'buy_verified_sig');
+  });
+
+  it('rejects buy deposit when USDC amount is too low', async () => {
+    const onDeposit = vi.fn();
+    const tx = db.create({
+      type: 'buy', wallet: 'buyer1', sol_amount: 1, usdc_amount: 1.05, memo: 'devsol-buylow1',
+    });
+
+    const rpcLowAmount = {
+      getSignaturesForAddress: vi.fn(() => ({
+        send: vi.fn(async () => [
+          { memo: '[20] devsol-buylow1', signature: 'buy_low_sig' },
+        ]),
+      })),
+      getTransaction: vi.fn(() => ({
+        send: vi.fn(async () => ({
+          meta: {
+            preTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 10 } }],
+            postTokenBalances: [{ mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', uiTokenAmount: { uiAmount: 10.01 } }],
+          },
+        })),
+      })),
+    };
+
+    const detector = new BuyDepositDetector({
+      db, rpc: rpcLowAmount as any, usdcAtaAddress: 'ATA', onDeposit,
+    });
+
+    await detector.poll();
+    expect(onDeposit).not.toHaveBeenCalled();
+    expect(db.getById(tx.id)!.status).toBe('failed');
   });
 });

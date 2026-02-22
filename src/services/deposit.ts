@@ -5,6 +5,11 @@ interface SolanaRpc {
   getSignaturesForAddress(address: any, opts: any): {
     send(): Promise<Array<{ memo: string | null; signature: string }>>;
   };
+  getTransaction(signature: any, opts: any): {
+    send(): Promise<{
+      meta: { preBalances: number[]; postBalances: number[] } | null;
+    } | null>;
+  };
 }
 
 interface DepositConfig {
@@ -36,6 +41,21 @@ export class DepositDetector {
     }
   }
 
+  async verifyDepositAmount(sig: string, expectedSol: number): Promise<boolean> {
+    try {
+      const txDetail = await this.cfg.rpc.getTransaction(sig, {
+        maxSupportedTransactionVersion: 0,
+      }).send();
+      if (!txDetail?.meta) return false;
+      const { preBalances, postBalances } = txDetail.meta;
+      const lastIdx = postBalances.length - 1;
+      const received = (postBalances[lastIdx] - preBalances[lastIdx]) / 1_000_000_000;
+      return received >= expectedSol * 0.999;
+    } catch {
+      return false;
+    }
+  }
+
   async poll() {
     const pendingSells = this.cfg.db.findPendingSells();
     if (pendingSells.length === 0) return;
@@ -53,7 +73,13 @@ export class DepositDetector {
           if (!cleanMemo) continue;
           const matching = pendingSells.find((tx) => tx.memo && cleanMemo === tx.memo);
           if (matching) {
-            await this.processDeposit(matching.id, sig.signature);
+            const amountOk = await this.verifyDepositAmount(sig.signature, matching.sol_amount);
+            if (amountOk) {
+              await this.processDeposit(matching.id, sig.signature);
+            } else {
+              console.error(`Amount mismatch for sell ${matching.id} (sig: ${sig.signature})`);
+              this.cfg.db.update(matching.id, { status: 'failed' });
+            }
           }
         }
       }
