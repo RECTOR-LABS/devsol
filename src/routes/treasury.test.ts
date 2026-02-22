@@ -57,5 +57,24 @@ describe('GET /treasury', () => {
     expect(body.treasury_sol).toBe(6842.5);
     expect(body.payout_usdc).toBeNull();
     expect(body.payout_wallet).toBeNull();
+    expect(body.pending_orders).toBeNull();
+  });
+
+  it('GET /health/detail includes pending_orders count', async () => {
+    const mockPayout = {
+      getUsdcBalance: vi.fn(async () => 500),
+      walletAddress: 'PayoutWallet111',
+    };
+    const mockDb = {
+      findPendingSells: vi.fn(() => [{}, {}]),
+      findPendingBuys: vi.fn(() => [{}]),
+    };
+    const detailApp = new Hono();
+    detailApp.route('/', treasuryRoutes(mockTreasury as any, mockPayout as any, mockDb as any));
+
+    const res = await detailApp.request('/health/detail');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.pending_orders).toBe(3);
   });
 });

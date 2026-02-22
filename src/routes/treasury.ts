@@ -4,6 +4,7 @@ import type { TreasuryService } from '../services/treasury.js';
 export function treasuryRoutes(
   treasury: TreasuryService,
   payout?: { getUsdcBalance(): Promise<number>; walletAddress: string },
+  db?: { findPendingSells(): unknown[]; findPendingBuys(): unknown[] },
 ) {
   const router = new Hono();
   router.get('/treasury', async (c) => {
@@ -27,6 +28,7 @@ export function treasuryRoutes(
         treasury_sol: treasurySol,
         payout_usdc: payoutUsdc,
         payout_wallet: payout?.walletAddress ?? null,
+        pending_orders: db ? db.findPendingSells().length + db.findPendingBuys().length : null,
       });
     } catch {
       return c.json({ error: 'Health check failed' }, 503);

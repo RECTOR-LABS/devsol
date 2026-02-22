@@ -71,10 +71,22 @@ async function main() {
     buyDetector.start();
   }
 
-  // Expiry cleanup — run every 60s
-  const expiryInterval = setInterval(() => {
+  // Expiry cleanup + low balance alerts — run every 60s
+  const expiryInterval = setInterval(async () => {
     const count = db.expireStale();
     if (count > 0) log.info(`Expired ${count} stale pending transactions`);
+
+    // Low balance alerts
+    try {
+      const treasuryBal = await treasury.getBalance();
+      if (treasuryBal < 10) log.error({ balance: treasuryBal }, 'LOW BALANCE: Treasury SOL below 10');
+      if (payout) {
+        const payoutBal = await payout.getUsdcBalance();
+        if (payoutBal < 10) log.error({ balance: payoutBal }, 'LOW BALANCE: Payout USDC below 10');
+      }
+    } catch (err) {
+      log.error({ err }, 'Balance check failed');
+    }
   }, 60_000);
 
   // Graceful shutdown

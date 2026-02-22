@@ -112,7 +112,7 @@ export function createApp(deps?: AppDeps) {
       await next();
     });
 
-    app.route('/', treasuryRoutes(deps.treasury, deps.payout));
+    app.route('/', treasuryRoutes(deps.treasury, deps.payout, db));
     app.route('/', buyRoutes({ db, pricing, treasury: deps.treasury, payoutAddress: deps.payout?.walletAddress ?? '' }));
     app.route('/', sellRoutes({ db, pricing, treasuryAddress: deps.treasury.address, payout: deps.payout }));
   }
