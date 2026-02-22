@@ -135,6 +135,56 @@ describe('DepositDetector', () => {
     expect(db.getById(tx.id)!.status).toBe('completed');
   });
 
+  it('matches whitespace-padded memo from RPC', async () => {
+    const onDeposit = vi.fn();
+    const tx = db.create({
+      type: 'sell',
+      wallet: 'seller1',
+      sol_amount: 5,
+      usdc_amount: 4.75,
+      memo: 'devsol-padded1',
+    });
+
+    const mockRpcPadded = {
+      getSignaturesForAddress: vi.fn(() => ({
+        send: vi.fn(async () => [
+          { memo: '  devsol-padded1  ', signature: 'padded_sig' },
+        ]),
+      })),
+    };
+
+    const detector = new DepositDetector({
+      db, rpc: mockRpcPadded as any, treasuryAddress: 'T', onDeposit,
+    });
+
+    await detector.poll();
+    expect(onDeposit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: tx.id }),
+      'padded_sig',
+    );
+  });
+
+  it('skips empty and whitespace-only memos', async () => {
+    const onDeposit = vi.fn();
+    db.create({ type: 'sell', wallet: 'seller1', sol_amount: 5, usdc_amount: 4.75, memo: 'devsol-skip1' });
+
+    const mockRpcEmpty = {
+      getSignaturesForAddress: vi.fn(() => ({
+        send: vi.fn(async () => [
+          { memo: '', signature: 'empty_sig' },
+          { memo: '   ', signature: 'whitespace_sig' },
+        ]),
+      })),
+    };
+
+    const detector = new DepositDetector({
+      db, rpc: mockRpcEmpty as any, treasuryAddress: 'T', onDeposit,
+    });
+
+    await detector.poll();
+    expect(onDeposit).not.toHaveBeenCalled();
+  });
+
   it('does not match on memo substring', async () => {
     const onDeposit = vi.fn();
     db.create({ type: 'sell', wallet: 'seller1', sol_amount: 5, usdc_amount: 4.75, memo: 'devsol-abc' });
