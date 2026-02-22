@@ -63,7 +63,7 @@ export class PayoutService {
     });
     try {
       const { value } = await this.rpc.getTokenAccountBalance(ata).send();
-      return Number(value.uiAmount ?? 0);
+      return Number(value.uiAmountString ?? '0');
     } catch {
       return 0; // ATA doesn't exist = 0 balance
     }
