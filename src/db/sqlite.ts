@@ -136,6 +136,20 @@ export class TransactionDB {
       .all() as Transaction[];
   }
 
+  findPendingBuys(): Transaction[] {
+    return this.db
+      .prepare("SELECT * FROM transactions WHERE type = 'buy' AND status = 'pending'")
+      .all() as Transaction[];
+  }
+
+  atomicCompleteBuy(id: string, mainnetSig: string): Transaction | null {
+    const result = this.db.prepare(
+      "UPDATE transactions SET status = 'completed', mainnet_tx = ?, updated_at = datetime('now') WHERE id = ? AND status = 'pending'"
+    ).run(mainnetSig, id);
+    if (result.changes === 0) return null;
+    return this.getById(id);
+  }
+
   findByMemo(memo: string): Transaction | null {
     const stmt = this.db.prepare('SELECT * FROM transactions WHERE memo = ?');
     return (stmt.get(memo) as Transaction) ?? null;

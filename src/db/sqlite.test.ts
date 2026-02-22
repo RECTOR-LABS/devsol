@@ -104,6 +104,32 @@ describe('TransactionDB', () => {
     expect(updated!.mainnet_payout_tx).toBe('mainnet_sig_abc123');
   });
 
+  it('findPendingBuys returns only pending buy orders', () => {
+    db.create({ type: 'buy', wallet: 'abc', sol_amount: 1, usdc_amount: 1.05 });
+    db.create({ type: 'sell', wallet: 'def', sol_amount: 2, usdc_amount: 1.9 });
+    db.create({ type: 'buy', wallet: 'ghi', sol_amount: 3, usdc_amount: 3.15 });
+    db.update(db.create({ type: 'buy', wallet: 'jkl', sol_amount: 1, usdc_amount: 1.05 }).id, { status: 'completed' });
+
+    const pending = db.findPendingBuys();
+    expect(pending).toHaveLength(2);
+    expect(pending.every(tx => tx.type === 'buy' && tx.status === 'pending')).toBe(true);
+  });
+
+  it('atomicCompleteBuy sets mainnet_tx and status completed', () => {
+    const tx = db.create({ type: 'buy', wallet: 'abc', sol_amount: 1, usdc_amount: 1.05, memo: 'devsol-buy1' });
+    const result = db.atomicCompleteBuy(tx.id, 'mainnet_sig_123');
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe('completed');
+    expect(result!.mainnet_tx).toBe('mainnet_sig_123');
+  });
+
+  it('atomicCompleteBuy returns null for already-completed buy', () => {
+    const tx = db.create({ type: 'buy', wallet: 'abc', sol_amount: 1, usdc_amount: 1.05 });
+    db.update(tx.id, { status: 'completed' });
+    const result = db.atomicCompleteBuy(tx.id, 'sig');
+    expect(result).toBeNull();
+  });
+
   it('prevents duplicate payment IDs', () => {
     db.create({
       type: 'buy',
