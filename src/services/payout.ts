@@ -26,6 +26,13 @@ import {
 const USDC_MINT = address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const USDC_DECIMALS = 6;
 
+export function usdcToAtomicUnits(usdcAmount: number): bigint {
+  const str = usdcAmount.toFixed(USDC_DECIMALS);
+  const [whole, frac = ''] = str.split('.');
+  const padded = frac.padEnd(USDC_DECIMALS, '0').slice(0, USDC_DECIMALS);
+  return BigInt(whole + padded);
+}
+
 const NON_RETRYABLE_PATTERNS = [
   'Amount must be positive',
   'Payout exceeds max',
@@ -102,7 +109,7 @@ export class PayoutService {
     if (usdcAmount > this.maxPayout) throw new Error(`Payout exceeds max: ${this.maxPayout} USDC`);
 
     const recipientAddr = address(recipient);
-    const rawAmount = BigInt(Math.round(usdcAmount * 10 ** USDC_DECIMALS));
+    const rawAmount = usdcToAtomicUnits(usdcAmount);
 
     const [senderAta] = await findAssociatedTokenPda({
       mint: USDC_MINT,

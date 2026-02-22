@@ -1,5 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { PayoutService } from './payout.js';
+import { PayoutService, usdcToAtomicUnits } from './payout.js';
+
+describe('usdcToAtomicUnits', () => {
+  it('converts 1 atomic unit (0.000001)', () => {
+    expect(usdcToAtomicUnits(0.000001)).toBe(1n);
+  });
+
+  it('converts max precision (99.999999)', () => {
+    expect(usdcToAtomicUnits(99.999999)).toBe(99_999_999n);
+  });
+
+  it('converts 1.1 to 1100000', () => {
+    expect(usdcToAtomicUnits(1.1)).toBe(1_100_000n);
+  });
+
+  it('converts whole number (10)', () => {
+    expect(usdcToAtomicUnits(10)).toBe(10_000_000n);
+  });
+
+  it('converts typical payout amount (4.75)', () => {
+    expect(usdcToAtomicUnits(4.75)).toBe(4_750_000n);
+  });
+});
 
 describe('PayoutService', () => {
   // We can't call PayoutService.create() in tests without real RPC
