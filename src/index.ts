@@ -68,8 +68,15 @@ async function main() {
     buyDetector.start();
   }
 
+  // Expiry cleanup — run every 60s
+  const expiryInterval = setInterval(() => {
+    const count = db.expireStale();
+    if (count > 0) console.log(`Expired ${count} stale pending transactions`);
+  }, 60_000);
+
   // Graceful shutdown
   const shutdown = () => {
+    clearInterval(expiryInterval);
     depositDetector.stop();
     buyDetector?.stop();
     db.close();
