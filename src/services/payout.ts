@@ -26,6 +26,13 @@ import {
 const USDC_MINT = address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const USDC_DECIMALS = 6;
 
+const NON_RETRYABLE_PATTERNS = [
+  'Amount must be positive',
+  'Payout exceeds max',
+  'insufficient funds',
+  'invalid account',
+];
+
 interface PayoutConfig {
   rpcUrl: string;
   wssUrl: string;
@@ -75,6 +82,21 @@ export class PayoutService {
     return balance >= usdcAmount + this.minReserve;
   }
 
+  private async withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isRetryable = !NON_RETRYABLE_PATTERNS.some((p) => msg.includes(p));
+        if (!isRetryable || attempt > maxRetries) throw err;
+        const delayMs = 1000 * 2 ** (attempt - 1); // 1s, 2s, 4s
+        console.warn(`Payout retry ${attempt}/${maxRetries} after ${delayMs}ms: ${msg}`);
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+  }
+
   async sendUsdc(recipient: string, usdcAmount: number): Promise<string> {
     if (usdcAmount <= 0) throw new Error('Amount must be positive');
     if (usdcAmount > this.maxPayout) throw new Error(`Payout exceeds max: ${this.maxPayout} USDC`);
@@ -120,9 +142,11 @@ export class PayoutService {
     const signedTx = await signTransactionMessageWithSigners(message);
     const signature = getSignatureFromTransaction(signedTx);
     // pipe() doesn't narrow the lifetime union — we know it's blockhash from above
-    await this.sendAndConfirm(
-      signedTx as Parameters<typeof this.sendAndConfirm>[0],
-      { commitment: 'confirmed' },
+    await this.withRetry(() =>
+      this.sendAndConfirm(
+        signedTx as Parameters<typeof this.sendAndConfirm>[0],
+        { commitment: 'confirmed' },
+      ),
     );
     return signature;
   }
