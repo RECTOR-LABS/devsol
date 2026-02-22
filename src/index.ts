@@ -19,12 +19,14 @@ async function main() {
 
   const x402 = new X402Service({
     facilitator: {
-      verify: async () => ({ valid: true }), // TODO: wire real facilitator
+      verify: async () => ({ isValid: true }),
+      settle: async () => ({ success: true, transaction: '', network: config.svmNetwork as `${string}:${string}` }),
+      getSupported: async () => ({ kinds: [], extensions: [], signers: {} }),
     },
     payTo: treasury.address,
     network: config.svmNetwork,
   });
-  console.warn('WARNING: x402 facilitator verification is STUBBED — all payments accepted');
+  console.warn('WARNING: x402 facilitator is STUBBED — wire HTTPFacilitatorClient for production');
 
   const { app, db } = createApp({ treasury, x402 });
 

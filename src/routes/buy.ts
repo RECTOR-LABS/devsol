@@ -36,10 +36,10 @@ export function buyRoutes({ db, pricing, treasury, x402 }: BuyDeps) {
     }
 
     const verification = await x402.verifyPayment(paymentHeader, quote.usdc_amount);
-    if (!verification.valid) {
+    if (!verification.isValid) {
       const payload = x402.createPaymentRequired(
         quote.usdc_amount,
-        `Payment invalid: ${verification.reason ?? 'unknown'}`,
+        `Payment invalid: ${verification.invalidReason ?? 'unknown'}`,
       );
       return c.json(payload, 402);
     }

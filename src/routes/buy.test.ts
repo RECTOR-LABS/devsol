@@ -16,7 +16,7 @@ const mockX402 = {
     accepts: [{ scheme: 'exact', price: '$10.5', network: 'solana:test', payTo: 'pay' }],
     description: 'Buy 10 SOL',
   })),
-  verifyPayment: vi.fn(async () => ({ valid: true } as { valid: boolean; reason?: string })),
+  verifyPayment: vi.fn(async () => ({ isValid: true } as { isValid: boolean; invalidReason?: string })),
 };
 
 describe('POST /buy', () => {
@@ -73,7 +73,7 @@ describe('POST /buy', () => {
   });
 
   it('returns 402 for invalid payment', async () => {
-    mockX402.verifyPayment.mockResolvedValueOnce({ valid: false, reason: 'bad proof' });
+    mockX402.verifyPayment.mockResolvedValueOnce({ isValid: false, invalidReason: 'bad proof' });
     const res = await app.request('/buy', {
       method: 'POST',
       headers: {

@@ -20,7 +20,11 @@ function makeTreasuryStub() {
 
 function makeX402() {
   return new X402Service({
-    facilitator: { verify: async () => ({ valid: true }) },
+    facilitator: {
+      verify: async () => ({ isValid: true }),
+      settle: async () => ({ success: true, transaction: 'fakeTx', network: 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1' as const }),
+      getSupported: async () => ({ kinds: [], extensions: [], signers: {} }),
+    },
     payTo: 'FakeAddr1111111111111111111111111111111111111',
     network: 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
   });
