@@ -19,28 +19,30 @@ export function buyRoutes({ db, pricing, treasury, x402 }: BuyDeps) {
     const body = await c.req.json().catch(() => null);
     const validated = validateBuySellBody(body);
     if (typeof validated === 'string') {
-      return c.json({ error: validated }, 400);
+      return c.json({ error: validated, code: 'INVALID_REQUEST' }, 400);
     }
 
     const { wallet, amount_sol } = validated;
     const quote = pricing.buyQuote(amount_sol);
 
-    const paymentHeader = c.req.header('X-PAYMENT');
+    // Balance pre-check
+    const balance = await treasury.getBalance();
+    if (balance < amount_sol) {
+      return c.json({ error: 'Buy temporarily unavailable: insufficient reserves', code: 'INSUFFICIENT_RESERVES' }, 503);
+    }
+
+    const paymentHeader = c.req.header('payment-signature');
 
     if (!paymentHeader) {
-      const payload = x402.createPaymentRequired(
-        quote.usdc_amount,
-        `Buy ${amount_sol} SOL devnet`,
-      );
+      const payload = x402.createPaymentRequired(quote.usdc_amount, `Buy ${amount_sol} SOL devnet`);
+      c.header('payment-required', x402.encodePaymentRequiredHeader(payload));
       return c.json(payload, 402);
     }
 
     const verification = await x402.verifyPayment(paymentHeader, quote.usdc_amount);
     if (!verification.isValid) {
-      const payload = x402.createPaymentRequired(
-        quote.usdc_amount,
-        `Payment invalid: ${verification.invalidReason ?? 'unknown'}`,
-      );
+      const payload = x402.createPaymentRequired(quote.usdc_amount, `Payment invalid: ${verification.invalidReason ?? 'unknown'}`);
+      c.header('payment-required', x402.encodePaymentRequiredHeader(payload));
       return c.json(payload, 402);
     }
 
@@ -55,11 +57,15 @@ export function buyRoutes({ db, pricing, treasury, x402 }: BuyDeps) {
     try {
       const devnetSig = await treasury.sendSol(wallet, amount_sol);
       db.update(tx.id, { status: 'completed', devnet_tx: devnetSig });
+      // Settle async — don't block response
+      x402.settlePayment(paymentHeader, quote.usdc_amount).catch((err) =>
+        console.error(`Settlement failed for tx ${tx.id}:`, err),
+      );
       return c.json({ ...db.getById(tx.id) });
     } catch (err) {
       console.error('Buy delivery failed:', err);
       db.update(tx.id, { status: 'failed' });
-      return c.json({ error: 'Delivery failed', transaction_id: tx.id }, 500);
+      return c.json({ error: 'Delivery failed', code: 'DELIVERY_FAILED', transaction_id: tx.id }, 500);
     }
   });
 
