@@ -41,11 +41,13 @@ export function createApp(deps?: AppDeps) {
   const strictRateLimits = new Map<string, { count: number; resetAt: number }>();
   let requestCounter = 0;
 
+  // First IP in X-Forwarded-For is the original client; subsequent entries
+  // are proxies that appended themselves. Spoofable, but rate limiting by
+  // first IP is the standard approach behind a trusted reverse proxy.
   function getClientIp(forwarded: string | undefined): string {
     if (!forwarded) return 'unknown';
-    const last = forwarded.split(',').pop();
-    const trimmed = last?.trim();
-    return trimmed || 'unknown';
+    const first = forwarded.split(',')[0]?.trim();
+    return first || 'unknown';
   }
 
   function checkRateLimit(
@@ -97,9 +99,9 @@ export function createApp(deps?: AppDeps) {
 
   if (deps?.treasury && deps?.x402) {
     // Stricter rate limit for state-changing endpoints
-    const strictPaths = ['/buy', '/sell'];
+    const strictPrefixes = ['/buy', '/sell'];
     app.use('*', async (c, next) => {
-      if (!strictPaths.includes(c.req.path)) return next();
+      if (!strictPrefixes.some((p) => c.req.path === p || c.req.path.startsWith(p + '/'))) return next();
       const ip = getClientIp(c.req.header('x-forwarded-for'));
       const now = Date.now();
       if (!checkRateLimit(strictRateLimits, ip, RATE_LIMIT_STRICT_MAX, now)) {

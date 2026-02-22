@@ -31,7 +31,10 @@ export function treasuryRoutes(
       let facilitatorReachable: boolean | null = null;
       if (facilitator) {
         try {
-          await facilitator.getSupported();
+          const timeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Facilitator health timeout')), 5_000),
+          );
+          await Promise.race([facilitator.getSupported(), timeout]);
           facilitatorReachable = true;
         } catch {
           facilitatorReachable = false;

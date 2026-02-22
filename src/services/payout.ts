@@ -34,11 +34,16 @@ export function usdcToAtomicUnits(usdcAmount: number): bigint {
   return BigInt(whole + padded);
 }
 
+// Errors that won't resolve by retrying — validation failures and
+// Solana-specific terminal states. Expand as production errors surface.
 const NON_RETRYABLE_PATTERNS = [
   'Amount must be positive',
   'Payout exceeds max',
   'insufficient funds',
   'invalid account',
+  'Blockhash not found',
+  'Transaction already processed',
+  'Program failed to complete',
 ];
 
 interface PayoutConfig {

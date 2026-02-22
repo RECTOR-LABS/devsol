@@ -86,4 +86,21 @@ describe('GET /treasury', () => {
     const body = await res.json();
     expect(body.facilitator_reachable).toBe(false);
   });
+
+  it('GET /health/detail returns facilitator_reachable: false on timeout', async () => {
+    vi.useFakeTimers();
+    const mockFacilitator = {
+      getSupported: vi.fn(() => new Promise(() => {})), // never resolves
+    };
+    const facApp = new Hono();
+    facApp.route('/', treasuryRoutes(mockTreasury as any, undefined, mockFacilitator));
+
+    const resPromise = facApp.request('/health/detail');
+    await vi.advanceTimersByTimeAsync(5_000);
+    const res = await resPromise;
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.facilitator_reachable).toBe(false);
+    vi.useRealTimers();
+  });
 });
