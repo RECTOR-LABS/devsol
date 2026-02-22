@@ -18,7 +18,7 @@ export function sellRoutes({ db, pricing, treasuryAddress, payout }: SellDeps) {
     const body = await c.req.json().catch(() => null);
     const validated = validateBuySellBody(body);
     if (typeof validated === 'string') {
-      return c.json({ error: validated }, 400);
+      return c.json({ error: validated, code: 'INVALID_INPUT' }, 400);
     }
 
     const { wallet, amount_sol } = validated;
@@ -52,7 +52,7 @@ export function sellRoutes({ db, pricing, treasuryAddress, payout }: SellDeps) {
         instructions: `Send exactly ${amount_sol} SOL to ${treasuryAddress} on Solana devnet with memo: ${memo}`,
       });
     } catch {
-      return c.json({ error: 'Failed to create sell order' }, 500);
+      return c.json({ error: 'Failed to create sell order', code: 'INTERNAL_ERROR' }, 500);
     }
   });
 

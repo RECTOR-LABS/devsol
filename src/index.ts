@@ -21,11 +21,6 @@ async function main() {
 
   // x402 facilitator (real)
   const facilitator = new HTTPFacilitatorClient({ url: config.facilitatorUrl });
-  const x402 = new X402Service({
-    facilitator,
-    payTo: treasury.address,
-    network: config.svmNetwork,
-  });
 
   // Mainnet payout (USDC) — optional, enables sell flow
   let payout: PayoutService | undefined;
@@ -44,6 +39,13 @@ async function main() {
     console.warn('WARNING: No mainnet keypair configured — sell payouts disabled');
   }
 
+  // x402 payTo: mainnet payout wallet if available, else devnet treasury
+  const x402 = new X402Service({
+    facilitator,
+    payTo: payout?.walletAddress ?? treasury.address,
+    network: config.svmNetwork,
+  });
+
   const { app, db } = createApp({ treasury, x402, payout });
 
   // Deposit detector with payout callback
@@ -59,6 +61,14 @@ async function main() {
         return;
       }
       try {
+        const canPay = await payout.canAffordPayout(tx.usdc_amount);
+        if (!canPay) {
+          console.error(`Insufficient USDC reserves for sell ${tx.id} — refunding`);
+          const refundSig = await treasury.sendSol(tx.wallet, tx.sol_amount);
+          db.update(tx.id, { status: 'refunded' });
+          console.log(`Refunded ${tx.sol_amount} SOL to ${tx.wallet}: ${refundSig}`);
+          return;
+        }
         const mainnetSig = await payout.sendUsdc(tx.wallet, tx.usdc_amount);
         db.update(tx.id, { mainnet_payout_tx: mainnetSig });
         console.log(`USDC payout sent for sell ${tx.id}: ${mainnetSig}`);
@@ -67,8 +77,8 @@ async function main() {
         // Refund devnet SOL
         try {
           const refundSig = await treasury.sendSol(tx.wallet, tx.sol_amount);
-          db.update(tx.id, { status: 'refunded', devnet_tx: refundSig });
-          console.log(`Refunded ${tx.sol_amount} SOL to ${tx.wallet}: ${refundSig}`);
+          db.update(tx.id, { status: 'refunded' });
+          console.log(`Refunded ${tx.sol_amount} SOL to ${tx.wallet}: ${refundSig} (original deposit: ${tx.devnet_tx})`);
         } catch (refundErr) {
           console.error(`CRITICAL: Refund also failed for sell ${tx.id}:`, refundErr);
           db.update(tx.id, { status: 'failed' });

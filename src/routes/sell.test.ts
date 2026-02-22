@@ -41,6 +41,8 @@ describe('POST /sell', () => {
       body: JSON.stringify({ wallet: 'Se11erWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX' }),
     });
     expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe('INVALID_INPUT');
   });
 
   it('persists sell order in database', async () => {
