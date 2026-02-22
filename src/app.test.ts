@@ -173,6 +173,35 @@ describe('DevSOL App', () => {
     db.close();
   });
 
+  it('applies stricter rate limit (10/min) on /sell endpoint', async () => {
+    const { db, pricing } = makeDeps();
+    const treasury = makeTreasuryStub();
+    const x402 = makeX402();
+    const payout = makePayoutStub();
+    const { app } = createApp({
+      pricing, db, treasury: treasury as any, x402, payout,
+    });
+
+    const sellBody = JSON.stringify({ wallet: 'TestWa11et111XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 1 });
+    const headers = { 'Content-Type': 'application/json', 'x-forwarded-for': '5.5.5.5' };
+
+    // 10 sell requests should pass
+    for (let i = 0; i < 10; i++) {
+      const res = await app.request('/sell', { method: 'POST', headers, body: sellBody });
+      expect(res.status).toBe(200);
+    }
+
+    // 11th should be rate limited
+    const limited = await app.request('/sell', { method: 'POST', headers, body: sellBody });
+    expect(limited.status).toBe(429);
+
+    // Other endpoints still work for the same IP
+    const healthRes = await app.request('/health', { headers });
+    expect(healthRes.status).toBe(200);
+
+    db.close();
+  });
+
   it('accepts payout as optional dep and wires to routes', async () => {
     const { db, pricing } = makeDeps();
     const treasury = makeTreasuryStub();

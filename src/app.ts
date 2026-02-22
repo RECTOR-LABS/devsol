@@ -14,8 +14,9 @@ import { TransactionDB } from './db/sqlite.js';
 import { config } from './config.js';
 
 const RATE_LIMIT_MAX = 60;
+const RATE_LIMIT_STRICT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_CLEANUP_THRESHOLD = 10_000;
+const RATE_LIMIT_CLEANUP_INTERVAL = 100;
 
 interface AppDeps {
   pricing?: PricingService;
@@ -37,23 +38,54 @@ export function createApp(deps?: AppDeps) {
 
   // Rate limiting (simple in-memory)
   const rateLimits = new Map<string, { count: number; resetAt: number }>();
-  app.use('*', async (c, next) => {
-    const forwarded = c.req.header('x-forwarded-for');
-    const ip = forwarded ? forwarded.split(',').pop()!.trim() : 'unknown';
-    const now = Date.now();
-    const entry = rateLimits.get(ip);
+  const strictRateLimits = new Map<string, { count: number; resetAt: number }>();
+  let requestCounter = 0;
+
+  function getClientIp(forwarded: string | undefined): string {
+    if (!forwarded) return 'unknown';
+    const last = forwarded.split(',').pop();
+    const trimmed = last?.trim();
+    return trimmed || 'unknown';
+  }
+
+  function checkRateLimit(
+    map: Map<string, { count: number; resetAt: number }>,
+    ip: string,
+    max: number,
+    now: number,
+  ): boolean {
+    const entry = map.get(ip);
     if (entry && entry.resetAt > now) {
-      if (entry.count >= RATE_LIMIT_MAX) {
-        return c.json({ error: 'Rate limit exceeded' }, 429);
-      }
+      if (entry.count >= max) return false;
       entry.count++;
     } else {
-      rateLimits.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-      if (rateLimits.size > RATE_LIMIT_CLEANUP_THRESHOLD) {
-        for (const [key, val] of rateLimits) {
-          if (val.resetAt <= now) rateLimits.delete(key);
-        }
-      }
+      map.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    }
+    return true;
+  }
+
+  function evictExpired(now: number) {
+    for (const [key, val] of rateLimits) {
+      if (val.resetAt <= now) rateLimits.delete(key);
+    }
+    for (const [key, val] of strictRateLimits) {
+      if (val.resetAt <= now) strictRateLimits.delete(key);
+    }
+  }
+
+  app.use('*', async (c, next) => {
+    const ip = getClientIp(c.req.header('x-forwarded-for'));
+    const now = Date.now();
+
+    // Periodic cleanup
+    requestCounter++;
+    if (requestCounter % RATE_LIMIT_CLEANUP_INTERVAL === 0) {
+      evictExpired(now);
+    }
+
+    if (!checkRateLimit(rateLimits, ip, RATE_LIMIT_MAX, now)) {
+      console.warn(`Rate limit hit: ${ip} on ${c.req.path}`);
+      return c.json({ error: 'Rate limit exceeded' }, 429);
     }
     await next();
   });
@@ -64,6 +96,19 @@ export function createApp(deps?: AppDeps) {
   app.route('/', txRoutes(db));
 
   if (deps?.treasury && deps?.x402) {
+    // Stricter rate limit for state-changing endpoints
+    const strictPaths = ['/buy', '/sell'];
+    app.use('*', async (c, next) => {
+      if (!strictPaths.includes(c.req.path)) return next();
+      const ip = getClientIp(c.req.header('x-forwarded-for'));
+      const now = Date.now();
+      if (!checkRateLimit(strictRateLimits, ip, RATE_LIMIT_STRICT_MAX, now)) {
+        console.warn(`Strict rate limit hit: ${ip} on ${c.req.path}`);
+        return c.json({ error: 'Rate limit exceeded' }, 429);
+      }
+      await next();
+    });
+
     app.route('/', treasuryRoutes(deps.treasury, deps.payout, deps.x402?.facilitator));
     app.route('/', buyRoutes({ db, pricing, treasury: deps.treasury, x402: deps.x402 }));
     app.route('/', sellRoutes({ db, pricing, treasuryAddress: deps.treasury.address, payout: deps.payout }));
