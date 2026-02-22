@@ -54,6 +54,31 @@ describe('DepositDetector', () => {
     expect(updated!.devnet_tx).toBe('devnet_deposit_sig');
   });
 
+  it('provides wallet and usdc_amount in onDeposit for payout', async () => {
+    const onDeposit = vi.fn();
+    const tx = db.create({
+      type: 'sell',
+      wallet: 'Se11erWa11etXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+      sol_amount: 5,
+      usdc_amount: 4.75,
+      memo: 'devsol-payout1',
+    });
+
+    const detector = new DepositDetector({
+      db, rpc: mockRpc as any, treasuryAddress: 'T', onDeposit,
+    });
+
+    await detector.processDeposit(tx.id, 'devnet_sig');
+    expect(onDeposit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wallet: 'Se11erWa11etXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        usdc_amount: 4.75,
+        status: 'completed',
+      }),
+      'devnet_sig',
+    );
+  });
+
   it('skips already-completed transactions (atomicComplete returns null)', async () => {
     const onDeposit = vi.fn();
     const tx = db.create({
