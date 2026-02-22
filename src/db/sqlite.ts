@@ -11,7 +11,8 @@ export interface Transaction {
   devnet_tx: string | null;
   mainnet_payout_tx: string | null;
   memo: string | null;
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  status: 'pending' | 'completed' | 'failed' | 'refunded' | 'expired';
+  expires_at: string;
   created_at: string;
   updated_at: string;
 }
@@ -55,7 +56,8 @@ export class TransactionDB {
         mainnet_payout_tx TEXT,
         memo        TEXT,
         status      TEXT NOT NULL DEFAULT 'pending'
-                      CHECK(status IN ('pending', 'completed', 'failed', 'refunded')),
+                      CHECK(status IN ('pending', 'completed', 'failed', 'refunded', 'expired')),
+        expires_at  TEXT NOT NULL DEFAULT (datetime('now', '+30 minutes')),
         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -68,13 +70,18 @@ export class TransactionDB {
     if (!columns.some(c => c.name === 'mainnet_payout_tx')) {
       this.db.exec('ALTER TABLE transactions ADD COLUMN mainnet_payout_tx TEXT');
     }
+
+    // Add expires_at column if it doesn't exist (migration for existing DBs)
+    if (!columns.some(c => c.name === 'expires_at')) {
+      this.db.exec("ALTER TABLE transactions ADD COLUMN expires_at TEXT DEFAULT (datetime('now', '+30 minutes'))");
+    }
   }
 
   create(input: CreateTransactionInput): Transaction {
     const id = randomUUID();
     const stmt = this.db.prepare(`
-      INSERT INTO transactions (id, type, wallet, sol_amount, usdc_amount, mainnet_tx, devnet_tx, memo)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, type, wallet, sol_amount, usdc_amount, mainnet_tx, devnet_tx, memo, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+30 minutes'))
     `);
     stmt.run(
       id,
@@ -153,6 +160,13 @@ export class TransactionDB {
   findByMemo(memo: string): Transaction | null {
     const stmt = this.db.prepare('SELECT * FROM transactions WHERE memo = ?');
     return (stmt.get(memo) as Transaction) ?? null;
+  }
+
+  expireStale(): number {
+    const result = this.db.prepare(
+      "UPDATE transactions SET status = 'expired', updated_at = datetime('now') WHERE status = 'pending' AND expires_at <= datetime('now')"
+    ).run();
+    return result.changes;
   }
 
   close() {

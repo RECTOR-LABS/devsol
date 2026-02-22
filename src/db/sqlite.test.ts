@@ -148,4 +148,47 @@ describe('TransactionDB', () => {
       }),
     ).toThrow();
   });
+
+  it('creates transaction with expires_at set to 30 minutes from now', () => {
+    const tx = db.create({ type: 'buy', wallet: 'abc', sol_amount: 1, usdc_amount: 1.05 });
+    expect(tx.expires_at).toBeDefined();
+    const expiresAt = new Date(tx.expires_at + 'Z').getTime();
+    const now = Date.now();
+    expect(expiresAt).toBeGreaterThan(now + 29 * 60_000);
+    expect(expiresAt).toBeLessThan(now + 31 * 60_000);
+  });
+
+  it('expireStale marks old pending transactions as expired', () => {
+    const tx = db.create({ type: 'sell', wallet: 'abc', sol_amount: 5, usdc_amount: 4.75 });
+    db['db'].prepare("UPDATE transactions SET expires_at = datetime('now', '-1 hour') WHERE id = ?").run(tx.id);
+    const count = db.expireStale();
+    expect(count).toBe(1);
+    expect(db.getById(tx.id)!.status).toBe('expired');
+  });
+
+  it('expireStale does not touch completed/failed/refunded transactions', () => {
+    const tx1 = db.create({ type: 'sell', wallet: 'abc', sol_amount: 5, usdc_amount: 4.75 });
+    db.update(tx1.id, { status: 'completed' });
+    db['db'].prepare("UPDATE transactions SET expires_at = datetime('now', '-1 hour') WHERE id = ?").run(tx1.id);
+    const count = db.expireStale();
+    expect(count).toBe(0);
+  });
+
+  it('findPendingSells excludes expired transactions', () => {
+    db.create({ type: 'sell', wallet: 'abc', sol_amount: 5, usdc_amount: 4.75 });
+    const tx2 = db.create({ type: 'sell', wallet: 'def', sol_amount: 3, usdc_amount: 2.85 });
+    db['db'].prepare("UPDATE transactions SET expires_at = datetime('now', '-1 hour') WHERE id = ?").run(tx2.id);
+    db.expireStale();
+    const pending = db.findPendingSells();
+    expect(pending).toHaveLength(1);
+  });
+
+  it('findPendingBuys excludes expired transactions', () => {
+    db.create({ type: 'buy', wallet: 'abc', sol_amount: 1, usdc_amount: 1.05 });
+    const tx2 = db.create({ type: 'buy', wallet: 'def', sol_amount: 2, usdc_amount: 2.10 });
+    db['db'].prepare("UPDATE transactions SET expires_at = datetime('now', '-1 hour') WHERE id = ?").run(tx2.id);
+    db.expireStale();
+    const pending = db.findPendingBuys();
+    expect(pending).toHaveLength(1);
+  });
 });

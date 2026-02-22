@@ -14,6 +14,7 @@ function makeTx(overrides?: Partial<Transaction>): Transaction {
     mainnet_payout_tx: null,
     memo: 'devsol-test1',
     status: 'completed',
+    expires_at: '2026-01-01T00:30:00',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     ...overrides,
