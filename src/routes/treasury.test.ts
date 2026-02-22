@@ -33,4 +33,29 @@ describe('GET /treasury', () => {
     const body = await res.json();
     expect(body.error).toBe('Treasury service unavailable');
   });
+
+  it('GET /health/detail returns service status with payout', async () => {
+    const mockPayout = {
+      getUsdcBalance: vi.fn(async () => 500),
+      walletAddress: 'PayoutWallet111',
+    };
+    const detailApp = new Hono();
+    detailApp.route('/', treasuryRoutes(mockTreasury as any, mockPayout as any));
+
+    const res = await detailApp.request('/health/detail');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.treasury_sol).toBe(6842.5);
+    expect(body.payout_usdc).toBe(500);
+    expect(body.payout_wallet).toBe('PayoutWallet111');
+  });
+
+  it('GET /health/detail returns null payout fields without payout service', async () => {
+    const res = await app.request('/health/detail');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.treasury_sol).toBe(6842.5);
+    expect(body.payout_usdc).toBeNull();
+    expect(body.payout_wallet).toBeNull();
+  });
 });
