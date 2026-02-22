@@ -5,6 +5,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    env: {
+      DEVSOL_TREASURY_KEYPAIR: './test-keypair.json',
+    },
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
