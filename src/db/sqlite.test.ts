@@ -97,6 +97,13 @@ describe('TransactionDB', () => {
     expect(db.atomicComplete('nonexistent', 'sig')).toBeNull();
   });
 
+  it('stores mainnet_payout_tx on update', () => {
+    const tx = db.create({ type: 'sell', wallet: 'abc', sol_amount: 5, usdc_amount: 4.75, memo: 'devsol-abc' });
+    db.update(tx.id, { mainnet_payout_tx: 'mainnet_sig_abc123' });
+    const updated = db.getById(tx.id);
+    expect(updated!.mainnet_payout_tx).toBe('mainnet_sig_abc123');
+  });
+
   it('prevents duplicate payment IDs', () => {
     db.create({
       type: 'buy',

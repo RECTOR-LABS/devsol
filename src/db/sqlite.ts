@@ -9,6 +9,7 @@ export interface Transaction {
   usdc_amount: number;
   mainnet_tx: string | null;
   devnet_tx: string | null;
+  mainnet_payout_tx: string | null;
   memo: string | null;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
   created_at: string;
@@ -29,6 +30,7 @@ export interface UpdateTransactionInput {
   status?: Transaction['status'];
   mainnet_tx?: string;
   devnet_tx?: string;
+  mainnet_payout_tx?: string;
 }
 
 export class TransactionDB {
@@ -50,6 +52,7 @@ export class TransactionDB {
         usdc_amount REAL NOT NULL,
         mainnet_tx  TEXT UNIQUE,
         devnet_tx   TEXT,
+        mainnet_payout_tx TEXT,
         memo        TEXT,
         status      TEXT NOT NULL DEFAULT 'pending'
                       CHECK(status IN ('pending', 'completed', 'failed', 'refunded')),
@@ -59,6 +62,12 @@ export class TransactionDB {
       CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
       CREATE INDEX IF NOT EXISTS idx_transactions_memo ON transactions(memo);
     `);
+
+    // Add mainnet_payout_tx column if it doesn't exist (migration for existing DBs)
+    const columns = this.db.pragma('table_info(transactions)') as Array<{ name: string }>;
+    if (!columns.some(c => c.name === 'mainnet_payout_tx')) {
+      this.db.exec('ALTER TABLE transactions ADD COLUMN mainnet_payout_tx TEXT');
+    }
   }
 
   create(input: CreateTransactionInput): Transaction {
@@ -100,6 +109,10 @@ export class TransactionDB {
     if (input.devnet_tx !== undefined) {
       sets.push('devnet_tx = ?');
       values.push(input.devnet_tx);
+    }
+    if (input.mainnet_payout_tx !== undefined) {
+      sets.push('mainnet_payout_tx = ?');
+      values.push(input.mainnet_payout_tx);
     }
 
     values.push(id);
