@@ -8,9 +8,10 @@ interface SellDeps {
   db: TransactionDB;
   pricing: PricingService;
   treasuryAddress: string;
+  payout?: { canAffordPayout(usdcAmount: number): Promise<boolean> };
 }
 
-export function sellRoutes({ db, pricing, treasuryAddress }: SellDeps) {
+export function sellRoutes({ db, pricing, treasuryAddress, payout }: SellDeps) {
   const router = new Hono();
 
   router.post('/sell', async (c) => {
@@ -22,6 +23,14 @@ export function sellRoutes({ db, pricing, treasuryAddress }: SellDeps) {
 
     const { wallet, amount_sol } = validated;
     const quote = pricing.sellQuote(amount_sol);
+
+    if (payout) {
+      const canPay = await payout.canAffordPayout(quote.usdc_amount);
+      if (!canPay) {
+        return c.json({ error: 'Sell temporarily unavailable: insufficient reserves', code: 'INSUFFICIENT_RESERVES' }, 503);
+      }
+    }
+
     const memo = `devsol-${randomUUID().slice(0, 8)}`;
 
     try {

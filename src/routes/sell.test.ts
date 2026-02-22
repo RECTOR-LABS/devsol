@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Hono } from 'hono';
 import { sellRoutes } from './sell.js';
 import { TransactionDB } from '../db/sqlite.js';
@@ -57,5 +57,20 @@ describe('POST /sell', () => {
     expect(tx!.memo).toBe(body.memo);
     expect(tx!.sol_amount).toBe(5);
     expect(tx!.usdc_amount).toBe(4.75);
+  });
+
+  it('returns 503 when USDC reserves insufficient', async () => {
+    const mockPayout = { canAffordPayout: vi.fn(async () => false) };
+    const payoutApp = new Hono();
+    payoutApp.route('/', sellRoutes({ db, pricing, treasuryAddress, payout: mockPayout }));
+
+    const res = await payoutApp.request('/sell', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet: 'Se11erWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 10 }),
+    });
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.code).toBe('INSUFFICIENT_RESERVES');
   });
 });
