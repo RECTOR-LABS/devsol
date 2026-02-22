@@ -47,8 +47,11 @@ export class DepositDetector {
 
       for (const sig of sigs) {
         if (sig.memo && sig.memo.trim()) {
-          const trimmedMemo = sig.memo.trim();
-          const matching = pendingSells.find((tx) => tx.memo && trimmedMemo === tx.memo);
+          // Solana RPC returns memo as "[byteLen] actualMemo" — strip prefix
+          const rawMemo = sig.memo.trim();
+          const cleanMemo = rawMemo.replace(/^\[\d+\]\s*/, '');
+          if (!cleanMemo) continue;
+          const matching = pendingSells.find((tx) => tx.memo && cleanMemo === tx.memo);
           if (matching) {
             await this.processDeposit(matching.id, sig.signature);
           }

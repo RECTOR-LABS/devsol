@@ -114,8 +114,8 @@ describe('DepositDetector', () => {
     const mockRpcWithDeposit = {
       getSignaturesForAddress: vi.fn(() => ({
         send: vi.fn(async () => [
-          { memo: 'devsol-match1', signature: 'deposit_sig_1' },
-          { memo: 'unrelated-memo', signature: 'other_sig' },
+          { memo: '[15] devsol-match1', signature: 'deposit_sig_1' },
+          { memo: '[16] unrelated-memo', signature: 'other_sig' },
         ]),
       })),
     };
@@ -183,6 +183,35 @@ describe('DepositDetector', () => {
 
     await detector.poll();
     expect(onDeposit).not.toHaveBeenCalled();
+  });
+
+  it('strips Solana RPC memo prefix [N] before matching', async () => {
+    const onDeposit = vi.fn();
+    const tx = db.create({
+      type: 'sell',
+      wallet: 'seller1',
+      sol_amount: 5,
+      usdc_amount: 4.75,
+      memo: 'devsol-prefix1',
+    });
+
+    const mockRpcPrefix = {
+      getSignaturesForAddress: vi.fn(() => ({
+        send: vi.fn(async () => [
+          { memo: '[15] devsol-prefix1', signature: 'prefix_sig' },
+        ]),
+      })),
+    };
+
+    const detector = new DepositDetector({
+      db, rpc: mockRpcPrefix as any, treasuryAddress: 'T', onDeposit,
+    });
+
+    await detector.poll();
+    expect(onDeposit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: tx.id }),
+      'prefix_sig',
+    );
   });
 
   it('does not match on memo substring', async () => {
