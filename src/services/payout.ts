@@ -27,6 +27,7 @@ const USDC_MINT = address('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const USDC_DECIMALS = 6;
 
 export function usdcToAtomicUnits(usdcAmount: number): bigint {
+  if (usdcAmount < 0) throw new Error('USDC amount cannot be negative');
   const str = usdcAmount.toFixed(USDC_DECIMALS);
   const [whole, frac = ''] = str.split('.');
   const padded = frac.padEnd(USDC_DECIMALS, '0').slice(0, USDC_DECIMALS);
@@ -148,7 +149,10 @@ export class PayoutService {
 
     const signedTx = await signTransactionMessageWithSigners(message);
     const signature = getSignatureFromTransaction(signedTx);
-    // pipe() doesn't narrow the lifetime union — we know it's blockhash from above
+    // Retrying the same signed tx is idempotent — Solana deduplicates by
+    // signature, and sendAndConfirmTransactionFactory checks existing
+    // confirmation status before resubmitting. Blockhash expiry (~60s) is
+    // not a concern at 3 retries with max ~7s total backoff.
     await this.withRetry(() =>
       this.sendAndConfirm(
         signedTx as Parameters<typeof this.sendAndConfirm>[0],

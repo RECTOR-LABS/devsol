@@ -21,6 +21,10 @@ describe('usdcToAtomicUnits', () => {
   it('converts typical payout amount (4.75)', () => {
     expect(usdcToAtomicUnits(4.75)).toBe(4_750_000n);
   });
+
+  it('throws on negative amount', () => {
+    expect(() => usdcToAtomicUnits(-1)).toThrow('USDC amount cannot be negative');
+  });
 });
 
 describe('PayoutService', () => {
