@@ -6,7 +6,7 @@ import type { PublicKey, Connection } from '@solana/web3.js';
 import { api } from '../api';
 import { useQuote } from '../hooks/useQuote';
 import { useTxPoller } from '../hooks/useTxPoller';
-import { buildBuyTransaction, buildSellTransaction } from '../lib/transactions';
+import { buildBuyTransaction } from '../lib/transactions';
 import type { BuyResponse, SellResponse, Transaction } from '../types';
 
 type Tab = 'buy' | 'sell';
@@ -65,7 +65,7 @@ function statusLabel(status: Transaction['status']): string {
 
 export function Widget() {
   const { connection } = useConnection();
-  const { publicKey, connected, sendTransaction, signTransaction } = useWallet();
+  const { publicKey, connected, sendTransaction } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? '';
   const { prices, getBuyQuote, getSellQuote } = useQuote();
   const { tx, polling, startPolling, reset: resetPoller } = useTxPoller();
@@ -160,7 +160,6 @@ export function Widget() {
           publicKey={publicKey}
           connection={connection}
           sendTransaction={sendTransaction}
-          signTransaction={signTransaction}
         />
       )}
 
@@ -308,7 +307,6 @@ function DepositView({
   publicKey,
   connection,
   sendTransaction,
-  signTransaction,
 }: {
   isBuy: boolean;
   order: BuyResponse | SellResponse;
@@ -316,7 +314,6 @@ function DepositView({
   publicKey: PublicKey;
   connection: Connection;
   sendTransaction: WalletContextState['sendTransaction'];
-  signTransaction: WalletContextState['signTransaction'];
 }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -328,41 +325,24 @@ function DepositView({
     : (order as SellResponse).amount_sol;
   const currency = isBuy ? 'USDC' : 'SOL';
 
-  // For sell flow, signTransaction is required. If wallet doesn't support it, force manual.
-  const sellNeedsManual = !isBuy && !signTransaction;
+  // Sell flow must use manual instructions — Phantom blocks signTransaction
+  // as a security measure (flags it as potentially malicious dApp).
+  const sellNeedsManual = !isBuy;
 
   async function handleSend() {
-    if (sending || sent) return;
+    if (sending || sent || !isBuy) return;
     setSendError(null);
     setSending(true);
 
     try {
-      if (isBuy) {
-        const tx = await buildBuyTransaction(
-          connection,
-          publicKey,
-          order.deposit_address,
-          (order as BuyResponse).usdc_cost,
-          order.memo,
-        );
-        await sendTransaction(tx, connection);
-      } else {
-        if (!signTransaction) {
-          throw new Error('Wallet does not support transaction signing. Use manual deposit.');
-        }
-        const { transaction, devnetConnection, lastValidBlockHeight } = await buildSellTransaction(
-          publicKey,
-          order.deposit_address,
-          (order as SellResponse).amount_sol,
-          order.memo,
-        );
-        const signed = await signTransaction(transaction);
-        const sig = await devnetConnection.sendRawTransaction(signed.serialize());
-        await devnetConnection.confirmTransaction(
-          { signature: sig, blockhash: transaction.recentBlockhash!, lastValidBlockHeight },
-          'confirmed',
-        );
-      }
+      const tx = await buildBuyTransaction(
+        connection,
+        publicKey,
+        order.deposit_address,
+        (order as BuyResponse).usdc_cost,
+        order.memo,
+      );
+      await sendTransaction(tx, connection);
       setSent(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Transaction failed';
