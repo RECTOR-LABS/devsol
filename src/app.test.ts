@@ -166,17 +166,17 @@ describe('DevSOL App', () => {
       pricing, db, treasury: treasury as any, payout,
     });
 
-    const sellBody = JSON.stringify({ wallet: 'TestWa11et111XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 1 });
     const headers = { 'Content-Type': 'application/json', 'x-forwarded-for': '5.5.5.5' };
 
-    // 10 sell requests should pass
+    // 10 sell requests should pass (unique amounts to avoid duplicate order rejection)
     for (let i = 0; i < 10; i++) {
+      const sellBody = JSON.stringify({ wallet: 'TestWa11et111XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 1 + i * 0.001 });
       const res = await app.request('/sell', { method: 'POST', headers, body: sellBody });
       expect(res.status).toBe(200);
     }
 
     // 11th should be rate limited
-    const limited = await app.request('/sell', { method: 'POST', headers, body: sellBody });
+    const limited = await app.request('/sell', { method: 'POST', headers, body: JSON.stringify({ wallet: 'TestWa11et111XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', amount_sol: 2 }) });
     expect(limited.status).toBe(429);
 
     // Other endpoints still work for the same IP
