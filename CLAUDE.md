@@ -93,7 +93,7 @@ scripts/
 - Detectors record deposit signature (devnet_tx/mainnet_tx) even on failure, enabling auto-refund
 - Low balance alerts log errors when treasury SOL < 10 or payout USDC < 10
 - Structured logging via pino (set `LOG_LEVEL` env var to control verbosity)
-- Feedback system: 3 posts/hour per IP, 10 votes/hour per IP, IP-hash dedup (SHA-256 truncated to 16 hex), content 10-500 chars
+- Feedback system: 3 posts/hour per IP, 10 votes/hour per IP, IP-hash dedup (SHA-256 truncated to 16 hex), content 1-500 chars
 - Frontend feedback shows optional wallet identity via `useWallet()` hook
 
 ## Environment Variables

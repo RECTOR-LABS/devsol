@@ -16,8 +16,8 @@ export function FeedbackSection() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (content.trim().length < 10) {
-      setError('Feedback must be at least 10 characters');
+    if (content.trim().length < 1) {
+      setError('Feedback cannot be empty');
       return;
     }
     setSubmitting(true);
@@ -73,7 +73,7 @@ export function FeedbackSection() {
           />
           <button
             type="submit"
-            disabled={submitting || content.trim().length < 10}
+            disabled={submitting || content.trim().length < 1}
             className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-sm hover:opacity-90 disabled:opacity-40 transition-opacity self-end"
           >
             {submitting ? '...' : 'Post'}
