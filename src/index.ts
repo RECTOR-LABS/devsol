@@ -41,7 +41,7 @@ async function main() {
     log.warn('No mainnet keypair configured — sell payouts disabled');
   }
 
-  const { app, db } = createApp({ treasury, payout });
+  const { app, db, feedbackDb } = createApp({ treasury, payout });
 
   // Deposit detector with payout callback
   const devnetRpc = createSolanaRpc(config.devnetRpc);
@@ -107,6 +107,7 @@ async function main() {
     depositDetector.stop();
     buyDetector?.stop();
     db.close();
+    feedbackDb.close();
     process.exit(0);
   };
   process.on('SIGTERM', shutdown);

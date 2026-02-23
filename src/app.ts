@@ -7,10 +7,12 @@ import { txRoutes } from './routes/tx.js';
 import { statsRoutes } from './routes/stats.js';
 import { buyRoutes } from './routes/buy.js';
 import { sellRoutes } from './routes/sell.js';
+import { feedbackRoutes } from './routes/feedback.js';
 import { PricingService } from './services/pricing.js';
 import type { TreasuryService } from './services/treasury.js';
 import type { PayoutService } from './services/payout.js';
 import { TransactionDB } from './db/sqlite.js';
+import { FeedbackDB } from './db/feedback.js';
 import { config } from './config.js';
 import { createLogger } from './logger.js';
 
@@ -26,11 +28,13 @@ interface AppDeps {
   treasury?: TreasuryService;
   db?: TransactionDB;
   payout?: PayoutService;
+  feedbackDb?: FeedbackDB;
 }
 
 export function createApp(deps?: AppDeps) {
   const pricing = deps?.pricing ?? new PricingService(config.buyPrice, config.sellPrice);
   const db = deps?.db ?? new TransactionDB(config.dbPath);
+  const feedbackDb = deps?.feedbackDb ?? new FeedbackDB(config.dbPath);
 
   const app = new Hono();
 
@@ -99,6 +103,7 @@ export function createApp(deps?: AppDeps) {
   app.route('/', priceRoutes(pricing));
   app.route('/', txRoutes(db));
   app.route('/', statsRoutes(db, pricing));
+  app.route('/', feedbackRoutes(feedbackDb));
 
   if (deps?.treasury) {
     // Stricter rate limit for state-changing endpoints
@@ -119,5 +124,5 @@ export function createApp(deps?: AppDeps) {
     app.route('/', sellRoutes({ db, pricing, treasuryAddress: deps.treasury.address, payout: deps.payout }));
   }
 
-  return { app, db, pricing };
+  return { app, db, pricing, feedbackDb };
 }

@@ -64,3 +64,11 @@ export interface RecentTransaction {
   status: string;
   created_at: string;
 }
+
+export interface Feedback {
+  id: string;
+  author: string | null;
+  content: string;
+  votes: number;
+  created_at: string;
+}

@@ -6,6 +6,7 @@ import type {
   HealthDetail,
   Transaction,
   RecentTransaction,
+  Feedback,
 } from './types';
 
 const BASE = import.meta.env.VITE_API_URL || '/api';
@@ -38,4 +39,13 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wallet, amount_sol }),
     }),
+  getFeedback: () => fetchJson<{ feedback: Feedback[] }>('/feedback'),
+  postFeedback: (content: string, author?: string) =>
+    fetchJson<Feedback>('/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, author }),
+    }),
+  voteFeedback: (id: string) =>
+    fetchJson<{ ok: boolean }>(`/feedback/${id}/vote`, { method: 'POST' }),
 };

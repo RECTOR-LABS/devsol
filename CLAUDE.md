@@ -7,9 +7,10 @@ Devnet SOL marketplace. Users buy devnet SOL with mainnet USDC or sell devnet SO
 - **Runtime**: Node.js + TypeScript (ESM)
 - **Framework**: Hono + @hono/node-server
 - **Solana**: @solana/kit, @solana-program/system, @solana-program/token, @solana-program/memo
-- **DB**: better-sqlite3 (file-based, single table `transactions`)
+- **DB**: better-sqlite3 (file-based, `transactions` + `feedback`/`feedback_votes` tables)
 - **Logging**: pino (structured JSON logging)
-- **Testing**: Vitest (17 test files, 120 tests)
+- **Testing**: Vitest (19 test files, 137 tests)
+- **Frontend**: React 19 + Vite 7 + Tailwind 4 + @solana/wallet-adapter
 - **Package Manager**: pnpm
 
 ## Commands
@@ -33,6 +34,9 @@ pnpm exec tsc --noEmit  # type-check without emitting
 | GET | `/tx/:id` | Transaction status lookup |
 | POST | `/buy` | Create buy order (returns USDC deposit instructions) |
 | POST | `/sell` | Create sell order (returns devnet SOL deposit instructions) |
+| GET | `/feedback` | List all feedback, sorted by votes desc |
+| POST | `/feedback` | Submit feedback (content, optional author) |
+| POST | `/feedback/:id/vote` | Upvote feedback (IP-deduplicated) |
 
 ## Architecture
 
@@ -51,6 +55,7 @@ src/
     price.ts            # GET /price — buy/sell quotes
     treasury.ts         # GET /treasury, GET /health/detail
     tx.ts               # GET /tx/:id — transaction status lookup
+    feedback.ts         # GET/POST /feedback, POST /feedback/:id/vote
   services/
     treasury.ts         # Devnet SOL transfers (sendSol, getBalance)
     payout.ts           # Mainnet USDC payouts (sendUsdc, canAffordPayout) with retry
@@ -59,6 +64,7 @@ src/
     buy-deposit.ts      # Polls mainnet for incoming USDC deposits (buy flow), matches by memo + verifies amount
   db/
     sqlite.ts           # TransactionDB — CRUD, atomicComplete/Buy, findPendingSells/Buys, expireStale, findFailedSellsWithDeposit
+    feedback.ts         # FeedbackDB — feedback + votes (IP-hash dedup, rate limiting)
 scripts/
   buy-e2e.ts            # Buy flow E2E test (mainnet USDC → devnet SOL)
   sell-e2e.ts           # Sell flow E2E test (devnet SOL → mainnet USDC)
@@ -87,6 +93,8 @@ scripts/
 - Detectors record deposit signature (devnet_tx/mainnet_tx) even on failure, enabling auto-refund
 - Low balance alerts log errors when treasury SOL < 10 or payout USDC < 10
 - Structured logging via pino (set `LOG_LEVEL` env var to control verbosity)
+- Feedback system: 3 posts/hour per IP, 10 votes/hour per IP, IP-hash dedup (SHA-256 truncated to 16 hex), content 10-500 chars
+- Frontend feedback shows optional wallet identity via `useWallet()` hook
 
 ## Environment Variables
 
