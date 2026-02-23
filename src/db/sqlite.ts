@@ -72,8 +72,10 @@ export class TransactionDB {
     }
 
     // Add expires_at column if it doesn't exist (migration for existing DBs)
+    // SQLite doesn't allow non-constant defaults in ALTER TABLE, so use a static default then backfill
     if (!columns.some(c => c.name === 'expires_at')) {
-      this.db.exec("ALTER TABLE transactions ADD COLUMN expires_at TEXT DEFAULT (datetime('now', '+30 minutes'))");
+      this.db.exec("ALTER TABLE transactions ADD COLUMN expires_at TEXT NOT NULL DEFAULT ''");
+      this.db.exec("UPDATE transactions SET expires_at = datetime(created_at, '+30 minutes') WHERE expires_at = ''");
     }
   }
 
