@@ -9,7 +9,7 @@ Devnet SOL marketplace. Users buy devnet SOL with mainnet USDC or sell devnet SO
 - **Solana**: @solana/kit, @solana-program/system, @solana-program/token, @solana-program/memo
 - **DB**: better-sqlite3 (file-based, single table `transactions`)
 - **Logging**: pino (structured JSON logging)
-- **Testing**: Vitest (16 test files, 112 tests)
+- **Testing**: Vitest (17 test files, 120 tests)
 - **Package Manager**: pnpm
 
 ## Commands
@@ -38,7 +38,7 @@ pnpm exec tsc --noEmit  # type-check without emitting
 
 ```
 src/
-  index.ts              # Entry — wires services, starts server + both deposit detectors + expiry cleanup
+  index.ts              # Entry — wires services, starts server + both deposit detectors + expiry/auto-refund cleanup
   logger.ts             # Pino structured logger with createLogger() factory
   app.ts                # Hono app, rate limiter, CORS, route mounting
   config.ts             # All env vars with defaults
@@ -55,10 +55,10 @@ src/
     treasury.ts         # Devnet SOL transfers (sendSol, getBalance)
     payout.ts           # Mainnet USDC payouts (sendUsdc, canAffordPayout) with retry
     pricing.ts          # Rate-based quotes (buy=1.05, sell=0.95 USDC/SOL)
-    deposit.ts          # Polls devnet for incoming SOL deposits (sell flow), matches by memo + verifies amount
+    deposit.ts          # Polls devnet for incoming SOL deposits (sell flow), matches by memo or wallet+amount, verifies amount
     buy-deposit.ts      # Polls mainnet for incoming USDC deposits (buy flow), matches by memo + verifies amount
   db/
-    sqlite.ts           # TransactionDB — CRUD, atomicComplete/Buy, findPendingSells/Buys, expireStale
+    sqlite.ts           # TransactionDB — CRUD, atomicComplete/Buy, findPendingSells/Buys, expireStale, findFailedSellsWithDeposit
 scripts/
   buy-e2e.ts            # Buy flow E2E test (mainnet USDC → devnet SOL)
   sell-e2e.ts           # Sell flow E2E test (devnet SOL → mainnet USDC)
@@ -69,7 +69,7 @@ scripts/
 
 **Buy**: Client `POST /buy` → gets payout wallet address + memo + USDC cost → client sends mainnet USDC with memo → BuyDepositDetector matches deposit → Treasury sends devnet SOL → status `completed`. If SOL delivery fails, USDC is refunded.
 
-**Sell**: Client `POST /sell` → gets treasury address + memo → client sends devnet SOL with memo → DepositDetector matches deposit → PayoutService sends mainnet USDC → status `completed`. If payout fails, devnet SOL is refunded.
+**Sell**: Client `POST /sell` → gets treasury address + memo → client sends devnet SOL with memo → DepositDetector matches deposit (by memo, or wallet+amount for manual sends) → PayoutService sends mainnet USDC → status `completed`. If payout fails, devnet SOL is refunded. Duplicate pending sell orders (same wallet + amount) are rejected with 409.
 
 ## Key Details
 
@@ -83,6 +83,8 @@ scripts/
 - Both detectors require mainnet keypair (`DEVSOL_MAINNET_KEYPAIR`) to be configured
 - Both detectors verify on-chain transfer amounts before processing (SOL: 0.1% tolerance, USDC: exact)
 - Pending orders expire after 30 minutes — cleanup job runs every 60s
+- Failed sell orders with confirmed deposits are auto-refunded every 60s (devnet SOL sent back to user)
+- Detectors record deposit signature (devnet_tx/mainnet_tx) even on failure, enabling auto-refund
 - Low balance alerts log errors when treasury SOL < 10 or payout USDC < 10
 - Structured logging via pino (set `LOG_LEVEL` env var to control verbosity)
 
