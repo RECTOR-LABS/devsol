@@ -50,28 +50,16 @@ export class DepositDetector {
       const txDetail = await this.cfg.rpc.getTransaction(sig, {
         maxSupportedTransactionVersion: 0,
       }).send() as any;
-      if (!txDetail?.meta) {
-        log.warn({ sig }, 'verifyDeposit: no meta');
-        return false;
-      }
+      if (!txDetail?.meta) return false;
       const { preBalances, postBalances } = txDetail.meta;
-      // @solana/kit returns accountKeys (not staticAccountKeys)
+      // @solana/kit returns accountKeys (not staticAccountKeys), and balances as BigInt
       const msg = txDetail.transaction.message;
       const accountKeys: string[] = (msg.accountKeys ?? msg.staticAccountKeys ?? []).map(String);
-      if (accountKeys.length === 0) {
-        log.warn({ sig, messageKeys: Object.keys(msg) }, 'verifyDeposit: no account keys found');
-        return false;
-      }
       const treasuryIdx = accountKeys.findIndex(k => k === String(this.cfg.treasuryAddress));
-      if (treasuryIdx === -1) {
-        log.warn({ sig, accountKeys, treasury: this.cfg.treasuryAddress }, 'verifyDeposit: treasury not in accountKeys');
-        return false;
-      }
-      // @solana/kit returns balances as BigInt, convert to Number for arithmetic
+      if (treasuryIdx === -1) return false;
       const received = (Number(postBalances[treasuryIdx]) - Number(preBalances[treasuryIdx])) / 1_000_000_000;
       return received >= expectedSol * 0.999;
-    } catch (err) {
-      log.warn({ sig, err }, 'verifyDeposit: exception');
+    } catch {
       return false;
     }
   }
