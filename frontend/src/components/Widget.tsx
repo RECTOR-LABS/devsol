@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import type { WalletContextState } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import type { PublicKey, Connection } from '@solana/web3.js';
 import { api } from '../api';
 import { useQuote } from '../hooks/useQuote';
 import { useTxPoller } from '../hooks/useTxPoller';
+import { buildBuyTransaction, buildSellTransaction } from '../lib/transactions';
 import type { BuyResponse, SellResponse, Transaction } from '../types';
 
 type Tab = 'buy' | 'sell';
@@ -61,7 +64,8 @@ function statusLabel(status: Transaction['status']): string {
 }
 
 export function Widget() {
-  const { publicKey, connected } = useWallet();
+  const { connection } = useConnection();
+  const { publicKey, connected, sendTransaction, signTransaction } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? '';
   const { prices, getBuyQuote, getSellQuote } = useQuote();
   const { tx, polling, startPolling, reset: resetPoller } = useTxPoller();
@@ -148,11 +152,15 @@ export function Widget() {
         />
       )}
 
-      {view === 'instructions' && orderResponse && (
-        <InstructionsView
+      {view === 'instructions' && orderResponse && publicKey && (
+        <DepositView
           isBuy={isBuy}
           order={orderResponse}
           polling={polling}
+          publicKey={publicKey}
+          connection={connection}
+          sendTransaction={sendTransaction}
+          signTransaction={signTransaction}
         />
       )}
 
@@ -293,51 +301,186 @@ function FormView({
   );
 }
 
-function InstructionsView({
+function DepositView({
   isBuy,
   order,
   polling,
+  publicKey,
+  connection,
+  sendTransaction,
+  signTransaction,
 }: {
   isBuy: boolean;
   order: BuyResponse | SellResponse;
   polling: boolean;
+  publicKey: PublicKey;
+  connection: Connection;
+  sendTransaction: WalletContextState['sendTransaction'];
+  signTransaction: WalletContextState['signTransaction'];
 }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [showManual, setShowManual] = useState(false);
+
   const depositAmount = isBuy
     ? (order as BuyResponse).usdc_cost
     : (order as SellResponse).amount_sol;
   const currency = isBuy ? 'USDC' : 'SOL';
 
+  // For sell flow, signTransaction is required. If wallet doesn't support it, force manual.
+  const sellNeedsManual = !isBuy && !signTransaction;
+
+  async function handleSend() {
+    if (sending || sent) return;
+    setSendError(null);
+    setSending(true);
+
+    try {
+      if (isBuy) {
+        const tx = await buildBuyTransaction(
+          connection,
+          publicKey,
+          order.deposit_address,
+          (order as BuyResponse).usdc_cost,
+          order.memo,
+        );
+        await sendTransaction(tx, connection);
+      } else {
+        if (!signTransaction) {
+          throw new Error('Wallet does not support transaction signing. Use manual deposit.');
+        }
+        const { transaction, devnetConnection } = await buildSellTransaction(
+          publicKey,
+          order.deposit_address,
+          (order as SellResponse).amount_sol,
+          order.memo,
+        );
+        const signed = await signTransaction(transaction);
+        await devnetConnection.sendRawTransaction(signed.serialize());
+      }
+      setSent(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Transaction failed';
+      // Don't show error for user rejection — they know what they did
+      if (!message.includes('User rejected')) {
+        setSendError(message);
+      }
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // After successful send, show polling state
+  if (sent) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-center gap-2 py-6">
+          <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+          <span className="text-text-secondary text-sm">
+            Transaction sent. Waiting for confirmation...
+          </span>
+        </div>
+        <div className="text-text-muted text-xs text-center">
+          TX: <span className="font-mono">{order.transaction_id}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="text-text-primary font-semibold text-base">
-        Deposit Instructions
+        Send Deposit
       </h3>
 
       <p className="text-text-secondary text-sm">
-        Send <span className="text-text-primary font-semibold">{depositAmount} {currency}</span> to:
+        Send{' '}
+        <span className="text-text-primary font-semibold">
+          {depositAmount} {currency}
+        </span>{' '}
+        {isBuy ? 'on mainnet' : 'on devnet'} to complete your order.
       </p>
 
-      {/* Deposit address */}
-      <div className="bg-input-bg border border-input-border rounded-[8px] p-3">
-        <span className="text-text-muted text-xs block mb-1">Address</span>
-        <div className="flex items-center">
-          <span className="text-text-primary text-sm font-mono truncate flex-1">
-            {truncateAddress(order.deposit_address)}
-          </span>
-          <CopyButton text={order.deposit_address} />
-        </div>
-      </div>
+      {/* One-click send button (unless wallet lacks signTransaction for sell) */}
+      {!sellNeedsManual && !showManual && (
+        <>
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={sending}
+            className={`w-full h-12 rounded-[8px] font-semibold text-base transition-colors cursor-pointer ${
+              isBuy
+                ? 'bg-primary hover:bg-primary/90 text-white'
+                : 'bg-accent hover:bg-accent/90 text-[#0A0A0F]'
+            } ${sending ? 'opacity-70 cursor-not-allowed' : ''}`}
+          >
+            {sending ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Sending...
+              </span>
+            ) : (
+              `Send ${depositAmount} ${currency}`
+            )}
+          </button>
 
-      {/* Memo */}
-      <div className="bg-input-bg border border-input-border rounded-[8px] p-3">
-        <span className="text-text-muted text-xs block mb-1">Memo (required)</span>
-        <div className="flex items-center">
-          <span className="text-text-primary text-sm font-mono truncate flex-1">
-            {order.memo}
-          </span>
-          <CopyButton text={order.memo} />
+          {sendError && (
+            <div className="space-y-2">
+              <p className="text-red-400 text-sm text-center">{sendError}</p>
+              <button
+                type="button"
+                onClick={handleSend}
+                className="w-full h-10 rounded-[8px] font-semibold text-sm bg-input-bg text-text-secondary hover:text-text-primary border border-input-border cursor-pointer transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Manual fallback toggle */}
+      {!showManual && !sellNeedsManual && (
+        <button
+          type="button"
+          onClick={() => setShowManual(true)}
+          className="text-text-muted hover:text-text-secondary text-xs underline w-full text-center cursor-pointer"
+        >
+          Send manually instead
+        </button>
+      )}
+
+      {/* Manual instructions (shown by default if wallet can't sign for sell) */}
+      {(showManual || sellNeedsManual) && (
+        <div className="space-y-3">
+          {sellNeedsManual && (
+            <p className="text-yellow-400 text-xs">
+              Your wallet does not support direct signing. Please send manually:
+            </p>
+          )}
+
+          <div className="bg-input-bg border border-input-border rounded-[8px] p-3">
+            <span className="text-text-muted text-xs block mb-1">Address</span>
+            <div className="flex items-center">
+              <span className="text-text-primary text-sm font-mono truncate flex-1">
+                {truncateAddress(order.deposit_address)}
+              </span>
+              <CopyButton text={order.deposit_address} />
+            </div>
+          </div>
+
+          <div className="bg-input-bg border border-input-border rounded-[8px] p-3">
+            <span className="text-text-muted text-xs block mb-1">Memo (required)</span>
+            <div className="flex items-center">
+              <span className="text-text-primary text-sm font-mono truncate flex-1">
+                {order.memo}
+              </span>
+              <CopyButton text={order.memo} />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Transaction ID */}
       <div className="text-text-muted text-xs">
