@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { priceRoutes } from './routes/price.js';
 import { treasuryRoutes } from './routes/treasury.js';
 import { txRoutes } from './routes/tx.js';
+import { statsRoutes } from './routes/stats.js';
 import { buyRoutes } from './routes/buy.js';
 import { sellRoutes } from './routes/sell.js';
 import { PricingService } from './services/pricing.js';
@@ -97,6 +98,7 @@ export function createApp(deps?: AppDeps) {
   app.get('/health', (c) => c.json({ status: 'ok' }));
   app.route('/', priceRoutes(pricing));
   app.route('/', txRoutes(db));
+  app.route('/', statsRoutes(db, pricing));
 
   if (deps?.treasury) {
     // Stricter rate limit for state-changing endpoints

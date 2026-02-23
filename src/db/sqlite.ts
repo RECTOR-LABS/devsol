@@ -171,6 +171,28 @@ export class TransactionDB {
     return result.changes;
   }
 
+  countByStatus(): { pending: number; completed: number; failed: number; refunded: number; expired: number; total: number } {
+    const rows = this.db
+      .prepare('SELECT status, COUNT(*) as count FROM transactions GROUP BY status')
+      .all() as Array<{ status: string; count: number }>;
+    const counts = { pending: 0, completed: 0, failed: 0, refunded: 0, expired: 0, total: 0 };
+    for (const row of rows) {
+      counts[row.status as keyof typeof counts] = row.count;
+      counts.total += row.count;
+    }
+    return counts;
+  }
+
+  getRecent(limit: number = 10): Array<{ id: string; type: string; wallet: string; sol_amount: number; usdc_amount: number; status: string; created_at: string }> {
+    const rows = this.db
+      .prepare('SELECT id, type, wallet, sol_amount, usdc_amount, status, created_at FROM transactions ORDER BY created_at DESC LIMIT ?')
+      .all(limit) as Array<{ id: string; type: string; wallet: string; sol_amount: number; usdc_amount: number; status: string; created_at: string }>;
+    return rows.map((r) => ({
+      ...r,
+      wallet: r.wallet.length > 8 ? `${r.wallet.slice(0, 4)}...${r.wallet.slice(-4)}` : r.wallet,
+    }));
+  }
+
   close() {
     this.db.close();
   }
