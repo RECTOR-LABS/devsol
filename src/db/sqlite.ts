@@ -77,6 +77,34 @@ export class TransactionDB {
       this.db.exec("ALTER TABLE transactions ADD COLUMN expires_at TEXT NOT NULL DEFAULT ''");
       this.db.exec("UPDATE transactions SET expires_at = datetime(created_at, '+30 minutes') WHERE expires_at = ''");
     }
+
+    // Migrate CHECK constraint to include 'expired' status (SQLite requires table rebuild)
+    const tableInfo = this.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='transactions'").get() as { sql: string } | undefined;
+    if (tableInfo && !tableInfo.sql.includes("'expired'")) {
+      this.db.exec(`
+        CREATE TABLE transactions_new (
+          id          TEXT PRIMARY KEY,
+          type        TEXT NOT NULL CHECK(type IN ('buy', 'sell')),
+          wallet      TEXT NOT NULL,
+          sol_amount  REAL NOT NULL,
+          usdc_amount REAL NOT NULL,
+          mainnet_tx  TEXT UNIQUE,
+          devnet_tx   TEXT,
+          mainnet_payout_tx TEXT,
+          memo        TEXT,
+          status      TEXT NOT NULL DEFAULT 'pending'
+                        CHECK(status IN ('pending', 'completed', 'failed', 'refunded', 'expired')),
+          expires_at  TEXT NOT NULL DEFAULT (datetime('now', '+30 minutes')),
+          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO transactions_new SELECT * FROM transactions;
+        DROP TABLE transactions;
+        ALTER TABLE transactions_new RENAME TO transactions;
+        CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+        CREATE INDEX IF NOT EXISTS idx_transactions_memo ON transactions(memo);
+      `);
+    }
   }
 
   create(input: CreateTransactionInput): Transaction {
