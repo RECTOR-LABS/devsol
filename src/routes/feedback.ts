@@ -5,7 +5,7 @@ import { createLogger } from '../logger.js';
 
 const log = createLogger('feedback');
 
-const MIN_CONTENT = 10;
+const MIN_CONTENT = 1;
 const MAX_CONTENT = 500;
 const MAX_POSTS_PER_HOUR = 3;
 const MAX_VOTES_PER_HOUR = 10;

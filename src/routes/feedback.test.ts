@@ -48,11 +48,11 @@ describe('Feedback routes', () => {
     const res = await app.request('/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: 'short' }),
+      body: JSON.stringify({ content: '' }),
     });
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/10-500 characters/);
+    expect(body.error).toMatch(/1-500 characters/);
   });
 
   it('POST /feedback validates content length (too long)', async () => {
