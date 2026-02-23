@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { TreasuryStats } from './components/TreasuryStats';
 import { TrustIndicators } from './components/TrustIndicators';
+import { FeedbackSection } from './components/FeedbackSection';
 import { TxFeed } from './components/TxFeed';
 import { useStats } from './hooks/useStats';
 import { useRecentTx } from './hooks/useRecentTx';
@@ -38,6 +39,9 @@ export default function App() {
 
         {/* Trust Indicators */}
         <TrustIndicators stats={stats} />
+
+        {/* Feedback */}
+        <FeedbackSection />
       </main>
 
       <Footer />
