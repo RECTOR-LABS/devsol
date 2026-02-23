@@ -99,7 +99,12 @@ export class TransactionDB {
           created_at  TEXT NOT NULL DEFAULT (datetime('now')),
           updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
         );
-        INSERT INTO transactions_new SELECT * FROM transactions;
+        INSERT INTO transactions_new (id, type, wallet, sol_amount, usdc_amount, mainnet_tx, devnet_tx, mainnet_payout_tx, memo, status, expires_at, created_at, updated_at)
+          SELECT id, type, wallet, sol_amount, usdc_amount, mainnet_tx, devnet_tx, mainnet_payout_tx, memo, status,
+            COALESCE(expires_at, datetime(created_at, '+30 minutes')),
+            COALESCE(created_at, datetime('now')),
+            COALESCE(updated_at, datetime('now'))
+          FROM transactions;
         DROP TABLE transactions;
         ALTER TABLE transactions_new RENAME TO transactions;
         CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
