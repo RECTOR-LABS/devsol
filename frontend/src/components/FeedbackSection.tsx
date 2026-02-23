@@ -14,7 +14,7 @@ export function FeedbackSection() {
     ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
     : null;
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (content.trim().length < 10) {
       setError('Feedback must be at least 10 characters');
