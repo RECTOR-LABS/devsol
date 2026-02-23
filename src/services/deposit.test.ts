@@ -11,6 +11,7 @@ describe('DepositDetector', () => {
     getTransaction: vi.fn(() => ({
       send: vi.fn(async () => ({
         meta: { preBalances: [10_000_000_000, 0], postBalances: [5_000_000_000, 5_000_000_000] },
+        transaction: { message: { staticAccountKeys: ['sender', 'treasury'] } },
       })),
     })),
   };
@@ -126,6 +127,7 @@ describe('DepositDetector', () => {
       getTransaction: vi.fn(() => ({
         send: vi.fn(async () => ({
           meta: { preBalances: [10_000_000_000, 0], postBalances: [5_000_000_000, 5_000_000_000] },
+          transaction: { message: { staticAccountKeys: ['sender', 'TreasuryAddr'] } },
         })),
       })),
     };
@@ -164,6 +166,7 @@ describe('DepositDetector', () => {
       getTransaction: vi.fn(() => ({
         send: vi.fn(async () => ({
           meta: { preBalances: [10_000_000_000, 0], postBalances: [5_000_000_000, 5_000_000_000] },
+          transaction: { message: { staticAccountKeys: ['sender', 'T'] } },
         })),
       })),
     };
@@ -193,6 +196,7 @@ describe('DepositDetector', () => {
       getTransaction: vi.fn(() => ({
         send: vi.fn(async () => ({
           meta: { preBalances: [10_000_000_000, 0], postBalances: [5_000_000_000, 5_000_000_000] },
+          transaction: { message: { staticAccountKeys: ['sender', 'T'] } },
         })),
       })),
     };
@@ -224,6 +228,7 @@ describe('DepositDetector', () => {
       getTransaction: vi.fn(() => ({
         send: vi.fn(async () => ({
           meta: { preBalances: [10_000_000_000, 0], postBalances: [5_000_000_000, 5_000_000_000] },
+          transaction: { message: { staticAccountKeys: ['sender', 'T'] } },
         })),
       })),
     };
@@ -252,6 +257,7 @@ describe('DepositDetector', () => {
       getTransaction: vi.fn(() => ({
         send: vi.fn(async () => ({
           meta: { preBalances: [10_000_000_000, 0], postBalances: [5_000_000_000, 5_000_000_000] },
+          transaction: { message: { staticAccountKeys: ['sender', 'T'] } },
         })),
       })),
     };
@@ -279,6 +285,7 @@ describe('DepositDetector', () => {
       getTransaction: vi.fn(() => ({
         send: vi.fn(async () => ({
           meta: { preBalances: [10_000_000_000, 0], postBalances: [4_999_000_000, 5_000_000_000] },
+          transaction: { message: { staticAccountKeys: ['sender', 'T'] } },
         })),
       })),
     };
@@ -306,6 +313,7 @@ describe('DepositDetector', () => {
       getTransaction: vi.fn(() => ({
         send: vi.fn(async () => ({
           meta: { preBalances: [1_000_000_000, 0], postBalances: [999_000_000, 1_000_000] },
+          transaction: { message: { staticAccountKeys: ['sender', 'T'] } },
         })),
       })),
     };

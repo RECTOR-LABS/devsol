@@ -11,6 +11,7 @@ interface SolanaRpc {
   getTransaction(signature: any, opts: any): {
     send(): Promise<{
       meta: { preBalances: number[]; postBalances: number[] } | null;
+      transaction: { message: { staticAccountKeys: string[] } };
     } | null>;
   };
 }
@@ -51,8 +52,10 @@ export class DepositDetector {
       }).send();
       if (!txDetail?.meta) return false;
       const { preBalances, postBalances } = txDetail.meta;
-      const lastIdx = postBalances.length - 1;
-      const received = (postBalances[lastIdx] - preBalances[lastIdx]) / 1_000_000_000;
+      const accountKeys = txDetail.transaction.message.staticAccountKeys;
+      const treasuryIdx = accountKeys.findIndex(k => k === this.cfg.treasuryAddress);
+      if (treasuryIdx === -1) return false;
+      const received = (postBalances[treasuryIdx] - preBalances[treasuryIdx]) / 1_000_000_000;
       return received >= expectedSol * 0.999;
     } catch {
       return false;

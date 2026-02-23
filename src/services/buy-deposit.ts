@@ -11,8 +11,8 @@ interface SolanaRpc {
   getTransaction(signature: any, opts: any): {
     send(): Promise<{
       meta: {
-        preTokenBalances: Array<{ mint: string; uiTokenAmount: { uiAmount: number } }>;
-        postTokenBalances: Array<{ mint: string; uiTokenAmount: { uiAmount: number } }>;
+        preTokenBalances: Array<{ mint: string; uiTokenAmount: { amount: string } }>;
+        postTokenBalances: Array<{ mint: string; uiTokenAmount: { amount: string } }>;
       } | null;
     } | null>;
   };
@@ -56,10 +56,12 @@ export class BuyDepositDetector {
       }).send();
       if (!txDetail?.meta) return false;
       const { preTokenBalances, postTokenBalances } = txDetail.meta;
-      const preBal = preTokenBalances.find(b => b.mint === USDC_MINT)?.uiTokenAmount.uiAmount ?? 0;
-      const postBal = postTokenBalances.find(b => b.mint === USDC_MINT)?.uiTokenAmount.uiAmount ?? 0;
+      const preBal = BigInt(preTokenBalances.find(b => b.mint === USDC_MINT)?.uiTokenAmount.amount ?? '0');
+      const postBal = BigInt(postTokenBalances.find(b => b.mint === USDC_MINT)?.uiTokenAmount.amount ?? '0');
       const received = postBal - preBal;
-      return received >= expectedUsdc;
+      // Compare in atomic units (USDC has 6 decimals)
+      const expectedAtomic = BigInt(Math.round(expectedUsdc * 1_000_000));
+      return received >= expectedAtomic;
     } catch {
       return false;
     }
