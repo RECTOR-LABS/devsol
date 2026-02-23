@@ -179,6 +179,13 @@ export class TransactionDB {
       .all() as Transaction[];
   }
 
+  hasPendingSell(wallet: string, solAmount: number): boolean {
+    const row = this.db
+      .prepare("SELECT 1 FROM transactions WHERE type = 'sell' AND status = 'pending' AND wallet = ? AND sol_amount = ? LIMIT 1")
+      .get(wallet, solAmount);
+    return !!row;
+  }
+
   findPendingBuys(): Transaction[] {
     return this.db
       .prepare("SELECT * FROM transactions WHERE type = 'buy' AND status = 'pending'")

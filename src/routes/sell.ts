@@ -22,6 +22,11 @@ export function sellRoutes({ db, pricing, treasuryAddress, payout }: SellDeps) {
     }
 
     const { wallet, amount_sol } = validated;
+
+    if (db.hasPendingSell(wallet, amount_sol)) {
+      return c.json({ error: 'You already have a pending sell order for this amount. Complete or wait for it to expire.', code: 'DUPLICATE_ORDER' }, 409);
+    }
+
     const quote = pricing.sellQuote(amount_sol);
 
     if (payout) {

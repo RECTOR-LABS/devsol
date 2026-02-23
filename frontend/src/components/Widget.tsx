@@ -6,7 +6,7 @@ import type { PublicKey, Connection } from '@solana/web3.js';
 import { api } from '../api';
 import { useQuote } from '../hooks/useQuote';
 import { useTxPoller } from '../hooks/useTxPoller';
-import { buildBuyTransaction } from '../lib/transactions';
+import { buildBuyTransaction, buildSellTransaction } from '../lib/transactions';
 import type { BuyResponse, SellResponse, Transaction } from '../types';
 
 type Tab = 'buy' | 'sell';
@@ -65,7 +65,7 @@ function statusLabel(status: Transaction['status']): string {
 
 export function Widget() {
   const { connection } = useConnection();
-  const { publicKey, connected, sendTransaction } = useWallet();
+  const { publicKey, connected, sendTransaction, signTransaction } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? '';
   const { prices, getBuyQuote, getSellQuote } = useQuote();
   const { tx, polling, startPolling, reset: resetPoller } = useTxPoller();
@@ -160,6 +160,7 @@ export function Widget() {
           publicKey={publicKey}
           connection={connection}
           sendTransaction={sendTransaction}
+          signTransaction={signTransaction}
         />
       )}
 
@@ -307,6 +308,7 @@ function DepositView({
   publicKey,
   connection,
   sendTransaction,
+  signTransaction,
 }: {
   isBuy: boolean;
   order: BuyResponse | SellResponse;
@@ -314,6 +316,7 @@ function DepositView({
   publicKey: PublicKey;
   connection: Connection;
   sendTransaction: WalletContextState['sendTransaction'];
+  signTransaction: WalletContextState['signTransaction'];
 }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -325,30 +328,59 @@ function DepositView({
     : (order as SellResponse).amount_sol;
   const currency = isBuy ? 'USDC' : 'SOL';
 
-  // Sell flow must use manual instructions — Phantom blocks signTransaction
-  // as a security measure (flags it as potentially malicious dApp).
-  const sellNeedsManual = !isBuy;
+  // Sell needs manual if wallet doesn't support signTransaction
+  const sellNeedsManual = !isBuy && !signTransaction;
 
   async function handleSend() {
-    if (sending || sent || !isBuy) return;
+    if (sending || sent) return;
     setSendError(null);
     setSending(true);
 
     try {
-      const tx = await buildBuyTransaction(
-        connection,
-        publicKey,
-        order.deposit_address,
-        (order as BuyResponse).usdc_cost,
-        order.memo,
-      );
-      await sendTransaction(tx, connection);
-      setSent(true);
+      if (isBuy) {
+        // Buy flow: mainnet USDC transfer via sendTransaction
+        const tx = await buildBuyTransaction(
+          connection,
+          publicKey,
+          order.deposit_address,
+          (order as BuyResponse).usdc_cost,
+          order.memo,
+        );
+        await sendTransaction(tx, connection);
+        setSent(true);
+      } else if (signTransaction) {
+        // Sell flow: sign devnet SOL transaction, submit to devnet ourselves
+        const { transaction, devnetConnection, lastValidBlockHeight } =
+          await buildSellTransaction(
+            publicKey,
+            order.deposit_address,
+            (order as SellResponse).amount_sol,
+            order.memo,
+          );
+        const signed = await signTransaction(transaction);
+        const sig = await devnetConnection.sendRawTransaction(signed.serialize());
+        await devnetConnection.confirmTransaction(
+          { signature: sig, blockhash: transaction.recentBlockhash!, lastValidBlockHeight },
+          'confirmed',
+        );
+        setSent(true);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Transaction failed';
-      // Don't show error for user rejection — they know what they did
-      if (!message.includes('User rejected')) {
-        setSendError(message);
+      // User rejected or wallet blocked (e.g. Phantom "Request blocked")
+      if (message.includes('User rejected') || message.includes('blocked')) {
+        // For sell: auto-fallback to manual instructions
+        if (!isBuy) {
+          setShowManual(true);
+        }
+        // For buy: silently ignore — user knows what they did
+      } else {
+        // For sell errors: fallback to manual instead of showing error
+        if (!isBuy) {
+          setShowManual(true);
+        } else {
+          setSendError(message);
+        }
       }
     } finally {
       setSending(false);
@@ -435,12 +467,12 @@ function DepositView({
         </button>
       )}
 
-      {/* Manual instructions (shown by default if wallet can't sign for sell) */}
+      {/* Manual instructions (shown by default if wallet can't sign for sell, or auto-fallback) */}
       {(showManual || sellNeedsManual) && (
         <div className="space-y-3">
-          {sellNeedsManual && (
+          {!isBuy && (
             <p className="text-yellow-400 text-xs">
-              Your wallet does not support direct signing. Please send manually:
+              Send manually using your wallet:
             </p>
           )}
 
@@ -454,15 +486,29 @@ function DepositView({
             </div>
           </div>
 
-          <div className="bg-input-bg border border-input-border rounded-[8px] p-3">
-            <span className="text-text-muted text-xs block mb-1">Memo (required)</span>
-            <div className="flex items-center">
-              <span className="text-text-primary text-sm font-mono truncate flex-1">
-                {order.memo}
-              </span>
-              <CopyButton text={order.memo} />
+          {/* Memo: required for buy (matching), not needed for sell (matches by wallet+amount) */}
+          {isBuy && (
+            <div className="bg-input-bg border border-input-border rounded-[8px] p-3">
+              <span className="text-text-muted text-xs block mb-1">Memo (required)</span>
+              <div className="flex items-center">
+                <span className="text-text-primary text-sm font-mono truncate flex-1">
+                  {order.memo}
+                </span>
+                <CopyButton text={order.memo} />
+              </div>
             </div>
-          </div>
+          )}
+
+          {!isBuy && (
+            <div className="bg-input-bg border border-input-border rounded-[8px] p-3">
+              <span className="text-text-muted text-xs block mb-1">Amount</span>
+              <div className="flex items-center">
+                <span className="text-text-primary text-sm font-mono flex-1">
+                  {depositAmount} SOL
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

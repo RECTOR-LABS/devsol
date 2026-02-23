@@ -72,25 +72,57 @@ export class DepositDetector {
         .send();
 
       for (const sig of sigs) {
+        // Strategy 1: Match by memo (automatic flow — memo embedded in transaction)
         if (sig.memo && sig.memo.trim()) {
-          // Solana RPC returns memo as "[byteLen] actualMemo" — strip prefix
           const rawMemo = sig.memo.trim();
           const cleanMemo = rawMemo.replace(/^\[\d+\]\s*/, '');
-          if (!cleanMemo) continue;
-          const matching = pendingSells.find((tx) => tx.memo && cleanMemo === tx.memo);
-          if (matching) {
-            const amountOk = await this.verifyDepositAmount(sig.signature, matching.sol_amount);
-            if (amountOk) {
-              await this.processDeposit(matching.id, sig.signature);
-            } else {
-              log.error(`Amount mismatch for sell ${matching.id} (sig: ${sig.signature})`);
-              this.cfg.db.update(matching.id, { status: 'failed' });
+          if (cleanMemo) {
+            const matching = pendingSells.find((tx) => tx.memo && cleanMemo === tx.memo);
+            if (matching) {
+              const amountOk = await this.verifyDepositAmount(sig.signature, matching.sol_amount);
+              if (amountOk) {
+                await this.processDeposit(matching.id, sig.signature);
+              } else {
+                log.error(`Amount mismatch for sell ${matching.id} (sig: ${sig.signature})`);
+                this.cfg.db.update(matching.id, { status: 'failed' });
+              }
+              continue;
             }
           }
         }
+
+        // Strategy 2: Match by sender wallet + amount (manual fallback — no memo possible)
+        await this.tryMatchByWallet(sig.signature, pendingSells);
       }
     } catch (err) {
       log.error({ err }, 'Deposit poll error');
+    }
+  }
+
+  private async tryMatchByWallet(signature: string, pendingSells: Transaction[]) {
+    try {
+      const txDetail = await this.cfg.rpc.getTransaction(signature, {
+        maxSupportedTransactionVersion: 0,
+      }).send();
+      if (!txDetail?.meta) return;
+
+      const accountKeys = txDetail.transaction.message.staticAccountKeys;
+      const treasuryIdx = accountKeys.findIndex(k => k === this.cfg.treasuryAddress);
+      if (treasuryIdx === -1) return;
+
+      const received = (txDetail.meta.postBalances[treasuryIdx] - txDetail.meta.preBalances[treasuryIdx]) / 1_000_000_000;
+      // Sender is the first account (fee payer)
+      const sender = accountKeys[0];
+
+      const matching = pendingSells.find(
+        (tx) => tx.wallet === sender && received >= tx.sol_amount * 0.999,
+      );
+      if (matching) {
+        log.info({ txId: matching.id, sender, received }, 'Matched sell by wallet+amount');
+        await this.processDeposit(matching.id, signature);
+      }
+    } catch {
+      // Ignore — transaction might not be fetched yet
     }
   }
 

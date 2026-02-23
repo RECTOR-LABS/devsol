@@ -61,6 +61,25 @@ describe('POST /sell', () => {
     expect(tx!.usdc_amount).toBe(4.75);
   });
 
+  it('rejects duplicate pending sell order for same wallet + amount', async () => {
+    const wallet = 'Se11erWa11etAddressXXXXXXXXXXXXXXXXXXXXXXXX';
+    const res1 = await app.request('/sell', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet, amount_sol: 10 }),
+    });
+    expect(res1.status).toBe(200);
+
+    const res2 = await app.request('/sell', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet, amount_sol: 10 }),
+    });
+    expect(res2.status).toBe(409);
+    const body = await res2.json();
+    expect(body.code).toBe('DUPLICATE_ORDER');
+  });
+
   it('returns 503 when USDC reserves insufficient', async () => {
     const mockPayout = { canAffordPayout: vi.fn(async () => false) };
     const payoutApp = new Hono();
