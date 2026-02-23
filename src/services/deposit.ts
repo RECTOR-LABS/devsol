@@ -67,7 +67,8 @@ export class DepositDetector {
         log.warn({ sig, accountKeys, treasury: this.cfg.treasuryAddress }, 'verifyDeposit: treasury not in accountKeys');
         return false;
       }
-      const received = (postBalances[treasuryIdx] - preBalances[treasuryIdx]) / 1_000_000_000;
+      // @solana/kit returns balances as BigInt, convert to Number for arithmetic
+      const received = (Number(postBalances[treasuryIdx]) - Number(preBalances[treasuryIdx])) / 1_000_000_000;
       return received >= expectedSol * 0.999;
     } catch (err) {
       log.warn({ sig, err }, 'verifyDeposit: exception');
@@ -124,7 +125,7 @@ export class DepositDetector {
       const treasuryIdx = accountKeys.findIndex(k => k === String(this.cfg.treasuryAddress));
       if (treasuryIdx === -1) return;
 
-      const received = (txDetail.meta.postBalances[treasuryIdx] - txDetail.meta.preBalances[treasuryIdx]) / 1_000_000_000;
+      const received = (Number(txDetail.meta.postBalances[treasuryIdx]) - Number(txDetail.meta.preBalances[treasuryIdx])) / 1_000_000_000;
       // Sender is the first account (fee payer)
       const sender = accountKeys[0];
 
