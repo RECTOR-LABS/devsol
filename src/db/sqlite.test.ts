@@ -191,4 +191,28 @@ describe('TransactionDB', () => {
     const pending = db.findPendingBuys();
     expect(pending).toHaveLength(1);
   });
+
+  it('counts transactions by status', () => {
+    db.create({ type: 'buy', wallet: 'a', sol_amount: 1, usdc_amount: 1.05 });
+    db.create({ type: 'sell', wallet: 'b', sol_amount: 2, usdc_amount: 1.90 });
+    const tx3 = db.create({ type: 'buy', wallet: 'c', sol_amount: 3, usdc_amount: 3.15 });
+    db.update(tx3.id, { status: 'completed' });
+
+    const counts = db.countByStatus();
+    expect(counts.pending).toBe(2);
+    expect(counts.completed).toBe(1);
+    expect(counts.total).toBe(3);
+  });
+
+  it('returns recent transactions with truncated wallets', () => {
+    for (let i = 0; i < 15; i++) {
+      const tx = db.create({ type: i % 2 === 0 ? 'buy' : 'sell', wallet: `wallet${i}xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`, sol_amount: i + 1, usdc_amount: (i + 1) * 1.05 });
+      if (i < 10) db.update(tx.id, { status: 'completed' });
+    }
+
+    const recent = db.getRecent(10);
+    expect(recent).toHaveLength(10);
+    // Wallet is truncated
+    expect(recent[0].wallet).toMatch(/^.{4}\.\.\..{4}$/);
+  });
 });
