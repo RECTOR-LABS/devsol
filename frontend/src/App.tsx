@@ -34,14 +34,14 @@ export default function App() {
         {/* Treasury Stats Bar */}
         <TreasuryStats stats={stats} health={health} />
 
-        {/* Recent Transactions */}
-        <TxFeed transactions={transactions} />
+        {/* TxFeed + Feedback side by side */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <TxFeed transactions={transactions} />
+          <FeedbackSection />
+        </div>
 
         {/* Trust Indicators */}
         <TrustIndicators stats={stats} />
-
-        {/* Feedback */}
-        <FeedbackSection />
       </main>
 
       <Footer />

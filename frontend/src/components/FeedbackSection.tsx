@@ -54,12 +54,15 @@ export function FeedbackSection() {
   }
 
   return (
-    <section>
-      <h2 className="text-xl font-bold mb-4">Feedback</h2>
+    <div className="bg-card-bg border border-card-border rounded-[12px] h-full flex flex-col">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-card-border">
+        <span className="text-sm font-semibold text-text-primary">Feedback</span>
+      </div>
 
       {/* Submit form */}
-      <form onSubmit={handleSubmit} className="mb-6">
-        <div className="flex gap-3">
+      <form onSubmit={handleSubmit} className="px-4 py-3 border-b border-card-border">
+        <div className="flex gap-2">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -83,25 +86,27 @@ export function FeedbackSection() {
       </form>
 
       {/* Feedback list */}
-      {loading ? (
-        <p className="text-text-muted text-sm">Loading...</p>
-      ) : feedback.length === 0 ? (
-        <p className="text-text-muted text-sm">No feedback yet. Be the first!</p>
-      ) : (
-        <div className="space-y-2">
-          {feedback.map((fb) => (
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <p className="text-text-muted text-sm py-8 text-center">Loading...</p>
+        ) : feedback.length === 0 ? (
+          <p className="text-text-muted text-sm py-8 text-center">
+            No feedback yet. Be the first!
+          </p>
+        ) : (
+          feedback.map((fb) => (
             <div
               key={fb.id}
-              className="flex items-start gap-3 bg-card-bg border border-card-border rounded-sm p-3"
+              className="px-4 py-3 border-b border-card-border last:border-0 flex items-start gap-3"
             >
               <button
                 onClick={() => handleVote(fb.id)}
                 disabled={votedIds.has(fb.id)}
-                className={`flex flex-col items-center min-w-[40px] pt-0.5 transition-colors ${
+                className={`flex flex-col items-center min-w-[32px] pt-0.5 transition-colors ${
                   votedIds.has(fb.id) ? 'text-primary' : 'text-text-muted hover:text-primary'
                 }`}
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                   <path d="M8 4L3 10h10L8 4z" />
                 </svg>
                 <span className="text-xs font-medium">{fb.votes}</span>
@@ -113,9 +118,9 @@ export function FeedbackSection() {
                 </p>
               </div>
             </div>
-          ))}
-        </div>
-      )}
-    </section>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
