@@ -81,6 +81,7 @@ export class TransactionDB {
     // Migrate CHECK constraint to include 'expired' status (SQLite requires table rebuild)
     const tableInfo = this.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='transactions'").get() as { sql: string } | undefined;
     if (tableInfo && !tableInfo.sql.includes("'expired'")) {
+      this.db.exec(`DROP TABLE IF EXISTS transactions_new`);
       this.db.exec(`
         CREATE TABLE transactions_new (
           id          TEXT PRIMARY KEY,
