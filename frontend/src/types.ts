@@ -49,9 +49,9 @@ export interface PlatformStats {
 }
 
 export interface HealthDetail {
-  treasury_sol: number;
-  payout_usdc: number;
-  payout_wallet: string;
+  treasury_sol: number | null;
+  payout_usdc: number | null;
+  payout_wallet: string | null;
   pending_orders: number;
 }
 

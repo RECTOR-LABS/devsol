@@ -11,12 +11,12 @@ export function TreasuryStats({ stats, health }: TreasuryStatsProps) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <StatItem
           label="Treasury SOL"
-          value={health ? health.treasury_sol.toFixed(2) : '—'}
+          value={health?.treasury_sol != null ? health.treasury_sol.toFixed(2) : '—'}
           unit="SOL (Devnet)"
         />
         <StatItem
           label="Payout Reserves"
-          value={health ? health.payout_usdc.toFixed(2) : '—'}
+          value={health?.payout_usdc != null ? health.payout_usdc.toFixed(2) : '—'}
           unit="USDC (Mainnet)"
         />
         <StatItem
