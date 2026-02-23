@@ -24,6 +24,8 @@ jobs:
 
       - name: Install and build
         working-directory: frontend
+        env:
+          VITE_MAINNET_RPC: ${{ secrets.HELIUS_MAINNET_RPC }}
         run: |
           pnpm install --frozen-lockfile
           pnpm build
