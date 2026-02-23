@@ -204,6 +204,24 @@ describe('TransactionDB', () => {
     expect(counts.total).toBe(3);
   });
 
+  it('findFailedSellsWithDeposit returns failed sells that have devnet_tx', () => {
+    const tx1 = db.create({ type: 'sell', wallet: 'abc', sol_amount: 5, usdc_amount: 4.75 });
+    db.update(tx1.id, { status: 'failed', devnet_tx: 'deposit_sig_1' });
+
+    const tx2 = db.create({ type: 'sell', wallet: 'def', sol_amount: 3, usdc_amount: 2.85 });
+    db.update(tx2.id, { status: 'failed' }); // no devnet_tx — should NOT be returned
+
+    const tx3 = db.create({ type: 'buy', wallet: 'ghi', sol_amount: 1, usdc_amount: 1.05 });
+    db.update(tx3.id, { status: 'failed', mainnet_tx: 'mainnet_sig' }); // buy, not sell
+
+    db.create({ type: 'sell', wallet: 'jkl', sol_amount: 2, usdc_amount: 1.9 }); // pending, not failed
+
+    const failed = db.findFailedSellsWithDeposit();
+    expect(failed).toHaveLength(1);
+    expect(failed[0].id).toBe(tx1.id);
+    expect(failed[0].devnet_tx).toBe('deposit_sig_1');
+  });
+
   it('returns recent transactions with truncated wallets', () => {
     for (let i = 0; i < 15; i++) {
       const tx = db.create({ type: i % 2 === 0 ? 'buy' : 'sell', wallet: `wallet${i}xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`, sol_amount: i + 1, usdc_amount: (i + 1) * 1.05 });

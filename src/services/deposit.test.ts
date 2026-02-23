@@ -324,6 +324,8 @@ describe('DepositDetector', () => {
 
     await detector.poll();
     expect(onDeposit).not.toHaveBeenCalled();
-    expect(db.getById(tx.id)!.status).toBe('failed');
+    const failed = db.getById(tx.id)!;
+    expect(failed.status).toBe('failed');
+    expect(failed.devnet_tx).toBe('low_sig');
   });
 });

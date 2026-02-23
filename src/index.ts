@@ -71,10 +71,22 @@ async function main() {
     buyDetector.start();
   }
 
-  // Expiry cleanup + low balance alerts — run every 60s
+  // Expiry cleanup + auto-refund + low balance alerts — run every 60s
   const expiryInterval = setInterval(async () => {
     const count = db.expireStale();
     if (count > 0) log.info(`Expired ${count} stale pending transactions`);
+
+    // Auto-refund failed sell orders that have confirmed deposits
+    const failedSells = db.findFailedSellsWithDeposit();
+    for (const tx of failedSells) {
+      try {
+        const refundSig = await treasury.sendSol(tx.wallet, tx.sol_amount);
+        db.update(tx.id, { status: 'refunded' });
+        log.info({ txId: tx.id, wallet: tx.wallet, sol: tx.sol_amount, refundSig }, 'Auto-refunded failed sell order');
+      } catch (err) {
+        log.error({ err, txId: tx.id }, 'Auto-refund failed — will retry next cycle');
+      }
+    }
 
     // Low balance alerts
     try {

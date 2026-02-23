@@ -200,6 +200,12 @@ export class TransactionDB {
     return this.getById(id);
   }
 
+  findFailedSellsWithDeposit(): Transaction[] {
+    return this.db
+      .prepare("SELECT * FROM transactions WHERE type = 'sell' AND status = 'failed' AND devnet_tx IS NOT NULL")
+      .all() as Transaction[];
+  }
+
   findByMemo(memo: string): Transaction | null {
     const stmt = this.db.prepare('SELECT * FROM transactions WHERE memo = ?');
     return (stmt.get(memo) as Transaction) ?? null;

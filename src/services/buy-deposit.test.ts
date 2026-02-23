@@ -323,6 +323,8 @@ describe('BuyDepositDetector', () => {
 
     await detector.poll();
     expect(onDeposit).not.toHaveBeenCalled();
-    expect(db.getById(tx.id)!.status).toBe('failed');
+    const failed = db.getById(tx.id)!;
+    expect(failed.status).toBe('failed');
+    expect(failed.mainnet_tx).toBe('buy_low_sig');
   });
 });
