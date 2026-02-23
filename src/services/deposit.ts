@@ -50,14 +50,25 @@ export class DepositDetector {
       const txDetail = await this.cfg.rpc.getTransaction(sig, {
         maxSupportedTransactionVersion: 0,
       }).send();
-      if (!txDetail?.meta) return false;
+      if (!txDetail?.meta) {
+        log.warn({ sig }, 'verifyDeposit: no meta');
+        return false;
+      }
       const { preBalances, postBalances } = txDetail.meta;
       const accountKeys = txDetail.transaction.message.staticAccountKeys;
-      const treasuryIdx = accountKeys.findIndex(k => k === this.cfg.treasuryAddress);
-      if (treasuryIdx === -1) return false;
+      const treasuryIdx = accountKeys.findIndex(k => String(k) === String(this.cfg.treasuryAddress));
+      if (treasuryIdx === -1) {
+        log.warn({ sig, accountKeys: accountKeys.map(String), treasury: this.cfg.treasuryAddress }, 'verifyDeposit: treasury not in accountKeys');
+        return false;
+      }
       const received = (postBalances[treasuryIdx] - preBalances[treasuryIdx]) / 1_000_000_000;
-      return received >= expectedSol * 0.999;
-    } catch {
+      const ok = received >= expectedSol * 0.999;
+      if (!ok) {
+        log.warn({ sig, received, expectedSol, threshold: expectedSol * 0.999 }, 'verifyDeposit: amount below threshold');
+      }
+      return ok;
+    } catch (err) {
+      log.warn({ sig, err }, 'verifyDeposit: exception');
       return false;
     }
   }
@@ -107,12 +118,12 @@ export class DepositDetector {
       if (!txDetail?.meta) return;
 
       const accountKeys = txDetail.transaction.message.staticAccountKeys;
-      const treasuryIdx = accountKeys.findIndex(k => k === this.cfg.treasuryAddress);
+      const treasuryIdx = accountKeys.findIndex(k => String(k) === String(this.cfg.treasuryAddress));
       if (treasuryIdx === -1) return;
 
       const received = (txDetail.meta.postBalances[treasuryIdx] - txDetail.meta.preBalances[treasuryIdx]) / 1_000_000_000;
       // Sender is the first account (fee payer)
-      const sender = accountKeys[0];
+      const sender = String(accountKeys[0]);
 
       const matching = pendingSells.find(
         (tx) => tx.wallet === sender && received >= tx.sol_amount * 0.999,
