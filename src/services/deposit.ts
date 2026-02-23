@@ -11,7 +11,7 @@ interface SolanaRpc {
   getTransaction(signature: any, opts: any): {
     send(): Promise<{
       meta: { preBalances: number[]; postBalances: number[] } | null;
-      transaction: { message: { staticAccountKeys: string[] } };
+      transaction: { message: { accountKeys?: string[]; staticAccountKeys?: string[] } };
     } | null>;
   };
 }
@@ -49,24 +49,26 @@ export class DepositDetector {
     try {
       const txDetail = await this.cfg.rpc.getTransaction(sig, {
         maxSupportedTransactionVersion: 0,
-      }).send();
+      }).send() as any;
       if (!txDetail?.meta) {
         log.warn({ sig }, 'verifyDeposit: no meta');
         return false;
       }
       const { preBalances, postBalances } = txDetail.meta;
-      const accountKeys = txDetail.transaction.message.staticAccountKeys;
-      const treasuryIdx = accountKeys.findIndex(k => String(k) === String(this.cfg.treasuryAddress));
+      // @solana/kit returns accountKeys (not staticAccountKeys)
+      const msg = txDetail.transaction.message;
+      const accountKeys: string[] = (msg.accountKeys ?? msg.staticAccountKeys ?? []).map(String);
+      if (accountKeys.length === 0) {
+        log.warn({ sig, messageKeys: Object.keys(msg) }, 'verifyDeposit: no account keys found');
+        return false;
+      }
+      const treasuryIdx = accountKeys.findIndex(k => k === String(this.cfg.treasuryAddress));
       if (treasuryIdx === -1) {
-        log.warn({ sig, accountKeys: accountKeys.map(String), treasury: this.cfg.treasuryAddress }, 'verifyDeposit: treasury not in accountKeys');
+        log.warn({ sig, accountKeys, treasury: this.cfg.treasuryAddress }, 'verifyDeposit: treasury not in accountKeys');
         return false;
       }
       const received = (postBalances[treasuryIdx] - preBalances[treasuryIdx]) / 1_000_000_000;
-      const ok = received >= expectedSol * 0.999;
-      if (!ok) {
-        log.warn({ sig, received, expectedSol, threshold: expectedSol * 0.999 }, 'verifyDeposit: amount below threshold');
-      }
-      return ok;
+      return received >= expectedSol * 0.999;
     } catch (err) {
       log.warn({ sig, err }, 'verifyDeposit: exception');
       return false;
@@ -117,13 +119,14 @@ export class DepositDetector {
       }).send();
       if (!txDetail?.meta) return;
 
-      const accountKeys = txDetail.transaction.message.staticAccountKeys;
-      const treasuryIdx = accountKeys.findIndex(k => String(k) === String(this.cfg.treasuryAddress));
+      const msg = (txDetail as any).transaction.message;
+      const accountKeys: string[] = (msg.accountKeys ?? msg.staticAccountKeys ?? []).map(String);
+      const treasuryIdx = accountKeys.findIndex(k => k === String(this.cfg.treasuryAddress));
       if (treasuryIdx === -1) return;
 
       const received = (txDetail.meta.postBalances[treasuryIdx] - txDetail.meta.preBalances[treasuryIdx]) / 1_000_000_000;
       // Sender is the first account (fee payer)
-      const sender = String(accountKeys[0]);
+      const sender = accountKeys[0];
 
       const matching = pendingSells.find(
         (tx) => tx.wallet === sender && received >= tx.sol_amount * 0.999,
