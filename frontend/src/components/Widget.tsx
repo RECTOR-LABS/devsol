@@ -350,14 +350,18 @@ function DepositView({
         if (!signTransaction) {
           throw new Error('Wallet does not support transaction signing. Use manual deposit.');
         }
-        const { transaction, devnetConnection } = await buildSellTransaction(
+        const { transaction, devnetConnection, lastValidBlockHeight } = await buildSellTransaction(
           publicKey,
           order.deposit_address,
           (order as SellResponse).amount_sol,
           order.memo,
         );
         const signed = await signTransaction(transaction);
-        await devnetConnection.sendRawTransaction(signed.serialize());
+        const sig = await devnetConnection.sendRawTransaction(signed.serialize());
+        await devnetConnection.confirmTransaction(
+          { signature: sig, blockhash: transaction.recentBlockhash!, lastValidBlockHeight },
+          'confirmed',
+        );
       }
       setSent(true);
     } catch (err) {
