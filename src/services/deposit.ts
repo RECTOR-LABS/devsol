@@ -86,7 +86,7 @@ export class DepositDetector {
                 await this.processDeposit(matching.id, sig.signature);
               } else {
                 log.error(`Amount mismatch for sell ${matching.id} (sig: ${sig.signature})`);
-                this.cfg.db.update(matching.id, { status: 'failed' });
+                this.cfg.db.update(matching.id, { status: 'failed', devnet_tx: sig.signature });
               }
               continue;
             }
