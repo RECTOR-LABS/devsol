@@ -30,7 +30,7 @@ USER nodejs
 ENV NODE_ENV=production
 EXPOSE 3100
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3100/health', (r) => { if (r.statusCode !== 200) process.exit(1) })"
 
 CMD ["node", "dist/index.js"]
