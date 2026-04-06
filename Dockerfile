@@ -21,11 +21,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nodejs && \
-    mkdir -p /app/data && \
-    chown -R nodejs:nodejs /app
-USER nodejs
+RUN mkdir -p /app/data && \
+    chown -R node:node /app
+USER node
 
 ENV NODE_ENV=production
 EXPOSE 3100
