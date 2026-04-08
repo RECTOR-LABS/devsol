@@ -102,6 +102,7 @@ scripts/
 |---|---|---|---|
 | `DEVSOL_TREASURY_KEYPAIR` | Yes | — | Path to devnet treasury keypair JSON |
 | `DEVSOL_MAINNET_KEYPAIR` | No | `""` (buy/sell disabled) | Path to mainnet payout keypair JSON |
+| `DEVSOL_HELIUS_API_KEY` | No | — | Helius API key for mainnet RPC/WSS |
 | `DEVSOL_MAINNET_RPC` | No | public RPC | Mainnet RPC (use Helius in prod) |
 | `DEVSOL_MAINNET_WSS` | No | public WSS | Mainnet WebSocket |
 | `DEVSOL_DEVNET_RPC` | No | public RPC | Devnet RPC |
@@ -116,10 +117,10 @@ scripts/
 ## E2E Testing
 
 ```bash
-# Requires MAINNET_RPC and MAINNET_WSS env vars (Helius recommended)
+# Requires DEVSOL_HELIUS_API_KEY env var (set in ~/Documents/secret/.env)
 # Requires test keypair at ~/Documents/secret/devsol/test-user-keypair.json
-MAINNET_RPC="https://mainnet.helius-rpc.com/?api-key=$HELIUS_API_KEY" \
-MAINNET_WSS="wss://mainnet.helius-rpc.com/?api-key=$HELIUS_API_KEY" \
+MAINNET_RPC="https://mainnet.helius-rpc.com/?api-key=$DEVSOL_HELIUS_API_KEY" \
+MAINNET_WSS="wss://mainnet.helius-rpc.com/?api-key=$DEVSOL_HELIUS_API_KEY" \
 pnpm exec tsx scripts/buy-e2e.ts   # or sell-e2e.ts
 ```
 

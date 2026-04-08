@@ -22,8 +22,10 @@ import {
 } from '@solana-program/token';
 import { readFileSync } from 'fs';
 
-const MAINNET_RPC = 'https://mainnet.helius-rpc.com/?api-key=142fb48a-aa24-4083-99c8-249df5400b30';
-const MAINNET_WSS = 'wss://mainnet.helius-rpc.com/?api-key=142fb48a-aa24-4083-99c8-249df5400b30';
+const HELIUS_KEY = process.env.DEVSOL_HELIUS_API_KEY;
+if (!HELIUS_KEY) throw new Error('DEVSOL_HELIUS_API_KEY env var is required');
+const MAINNET_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
+const MAINNET_WSS = `wss://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`;
 const PAYOUT_KEYPAIR = readFileSync(
   `${process.env.HOME}/Documents/secret/devsol/mainnet-payout-keypair.json`,
   'utf-8',

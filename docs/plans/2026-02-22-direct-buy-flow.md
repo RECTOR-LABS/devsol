@@ -811,8 +811,8 @@ import {
 import { readFileSync } from 'fs';
 
 const API = 'https://devsol.rectorspace.com';
-const MAINNET_RPC = 'https://mainnet.helius-rpc.com/?api-key=142fb48a-aa24-4083-99c8-249df5400b30';
-const MAINNET_WSS = 'wss://mainnet.helius-rpc.com/?api-key=142fb48a-aa24-4083-99c8-249df5400b30';
+const MAINNET_RPC = `https://mainnet.helius-rpc.com/?api-key=${process.env.DEVSOL_HELIUS_API_KEY}`;
+const MAINNET_WSS = `wss://mainnet.helius-rpc.com/?api-key=${process.env.DEVSOL_HELIUS_API_KEY}`;
 const DEVNET_RPC = 'https://api.devnet.solana.com';
 const TEST_KEYPAIR = readFileSync(
   `${process.env.HOME}/Documents/secret/devsol/test-user-keypair.json`, 'utf-8',
